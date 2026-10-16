@@ -28,7 +28,7 @@ Use before public deployment. S4 (2026-10-15) categories below.
 - [ ] Error monitoring strategy decided
 - [ ] Analytics strategy decided (no raw user content in events)
 - [ ] AdSense intentionally NOT added until content/tool quality is validated in production
-- [ ] `BLOB_READ_WRITE_TOKEN` configured for private temporary video (production)
+- [ ] Private Vercel Blob store connected (OIDC on Production/Preview); legacy `BLOB_READ_WRITE_TOKEN` only if not on Vercel
 - [ ] `CRON_SECRET` set and Vercel Cron (or equivalent) calls `/api/internal/cleanup-temporary-media`
 - [ ] Video size limit (default 24 MB) verified in UI
 - [ ] Video duration limit (default 10 min) verified in UI

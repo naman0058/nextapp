@@ -13,6 +13,7 @@ import type {
   TemporaryMediaStorage,
   UploadAuthorization,
 } from "@/lib/media-storage/types";
+import { isVercelBlobStorageConfigured } from "@/lib/media-storage/blobConfig";
 import { VIDEO_TEMP_PATH_PREFIX } from "@/features/video/constants/videoLimits";
 
 const UPLOAD_TTL_MS = 2 * 60 * 60 * 1000;
@@ -22,7 +23,7 @@ const pendingUploads = new Set<string>();
 
 export class VercelBlobTemporaryMediaStorage implements TemporaryMediaStorage {
   isConfigured(): boolean {
-    return Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim());
+    return isVercelBlobStorageConfigured();
   }
 
   async createUploadAuthorization(

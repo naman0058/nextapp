@@ -95,7 +95,7 @@ export async function POST(request: Request) {
       applyDelay: parsed.applyPolitenessDelay,
     });
 
-    const runtime = getWebsiteScannerRuntime();
+    const runtime = await getWebsiteScannerRuntime();
     const result = await runtime.scanPage({
       url: validated.href,
       viewport: getScanViewport(parsed.viewportId),

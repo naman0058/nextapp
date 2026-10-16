@@ -5,6 +5,7 @@ import {
   getScannerServiceToken,
   getScannerServiceUrl,
 } from "@/features/website-scanner/server/playwright/scannerConfig";
+import { isLocalPlaywrightSupportedOnPlatform } from "@/features/website-scanner/server/config/scannerPlatform";
 import { isVisualLocatorConfigured } from "@/features/website-scanner/server/visualLocator/getVisualLocatorSigningSecret";
 
 export type WebsiteScannerAvailability = {
@@ -23,7 +24,17 @@ export function getWebsiteScannerAvailability(): WebsiteScannerAvailability {
           "Website scanning is temporarily unavailable. Other accessibility tools remain available.",
       };
     }
+    return { available: true, userMessage: "" };
   }
+
+  if (!isLocalPlaywrightSupportedOnPlatform()) {
+    return {
+      available: false,
+      userMessage:
+        "Website scanning is temporarily unavailable. Other accessibility tools remain available.",
+    };
+  }
+
   return {
     available: true,
     userMessage: "",

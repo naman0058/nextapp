@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     assertScannerProductionConfig();
     await validateScanTargetUrl(payload.url);
 
-    const runtime = getWebsiteScannerRuntime();
+    const runtime = await getWebsiteScannerRuntime();
     const result = await runtime.visualizeIssue({
       url: payload.url,
       viewport: payload.viewport,

@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { discoverCrawlUrls } from "@/features/website-scanner/server/discover/discoverCrawlUrls";
 import { WebsiteScanError } from "@/features/website-scanner/types/scanErrors";
 import { WEBSITE_DISCOVER_CRAWL_RATE_COST } from "@/features/website-scanner/server/websiteScanRateLimitCost";
 import { getWebsiteScannerAvailability } from "@/features/website-scanner/server/config/websiteScannerAvailability";
@@ -46,6 +45,9 @@ export async function POST(request: Request) {
     return noStoreJson({ error: "Enter a website URL." }, 400);
   }
   try {
+    const { discoverCrawlUrls } = await import(
+      "@/features/website-scanner/server/discover/discoverCrawlUrls"
+    );
     const result = await discoverCrawlUrls(siteUrl);
     return noStoreJson({ urls: result.urls }, 200);
   } catch (err) {

@@ -53,6 +53,13 @@ describe.skipIf(!RUN)("scanner worker authentication", () => {
     expect(status).toBe(401);
   });
 
+  it("returns 401 without Bearer token on discover-crawl", async () => {
+    const status = await postWithoutAuth("/v1/discover-crawl", {
+      siteUrl: "https://example.com/",
+    });
+    expect(status).toBe(401);
+  });
+
   it("returns 401 without Bearer token on visualize-accessibility-issue", async () => {
     const status = await postWithoutAuth("/v1/visualize-accessibility-issue", {
       url: "https://example.com/",

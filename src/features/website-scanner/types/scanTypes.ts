@@ -20,6 +20,15 @@ export type WebsitePageScanRequest = {
   scanId?: string;
 };
 
+export type WebsiteCrawlDiscoveredUrl = {
+  url: string;
+  depth: number;
+};
+
+export type WebsiteDiscoverCrawlResult = {
+  urls: WebsiteCrawlDiscoveredUrl[];
+};
+
 export type LandmarkContext =
   | "header"
   | "navigation"

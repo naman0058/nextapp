@@ -59,12 +59,12 @@ describe("scanner runtime import gate", () => {
     }
   });
 
-  it("discover-crawl route does not statically import discoverCrawlUrls", () => {
+  it("discover-crawl route uses runtime factory, not Playwright crawl module", () => {
     const src = readSrc("src/app/api/accessibility/website/discover-crawl/route.ts");
-    expect(src).not.toMatch(
-      /^import\s+\{\s*discoverCrawlUrls\s*\}/m,
-    );
-    expect(src).toContain('await import(');
+    expect(src).not.toMatch(/discover\/discoverCrawlUrls/);
+    expect(src).not.toMatch(/from ["']playwright["']/);
+    expect(src).toContain("getWebsiteScannerRuntime");
+    expect(src).toContain("runtime.discoverCrawlUrls");
   });
 
   it("throws SCANNER_UNAVAILABLE when local Playwright module fails to load", async () => {

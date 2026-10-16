@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getWebsiteScannerRuntime } from "@/features/website-scanner/server/runtime/getWebsiteScannerRuntime";
 import { WebsiteScanError } from "@/features/website-scanner/types/scanErrors";
 import { WEBSITE_DISCOVER_CRAWL_RATE_COST } from "@/features/website-scanner/server/websiteScanRateLimitCost";
 import { getWebsiteScannerAvailability } from "@/features/website-scanner/server/config/websiteScannerAvailability";
@@ -45,15 +46,22 @@ export async function POST(request: Request) {
     return noStoreJson({ error: "Enter a website URL." }, 400);
   }
   try {
-    const { discoverCrawlUrls } = await import(
-      "@/features/website-scanner/server/discover/discoverCrawlUrls"
-    );
-    const result = await discoverCrawlUrls(siteUrl);
+    const runtime = await getWebsiteScannerRuntime();
+    const result = await runtime.discoverCrawlUrls(siteUrl);
     return noStoreJson({ urls: result.urls }, 200);
   } catch (err) {
     if (err instanceof WebsiteScanError) {
-      return noStoreJson({ code: err.code, error: err.userMessage }, 400);
+      const status =
+        err.code === "RATE_LIMITED"
+          ? 429
+          : err.code === "SCANNER_UNAVAILABLE"
+            ? 503
+            : 400;
+      return noStoreJson({ code: err.code, error: err.userMessage }, status);
     }
-    return noStoreJson({ error: "Site discovery failed." }, 503);
+    return noStoreJson(
+      { code: "SCANNER_UNAVAILABLE", error: "Site discovery failed." },
+      503,
+    );
   }
 }

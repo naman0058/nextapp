@@ -1,0 +1,42 @@
+# Hostinger production scanner worker — run from this directory:
+#   docker compose up --build -d
+# Requires external network dar-scanner-net (operator-created; not managed here).
+services:
+  scanner:
+    build:
+      context: ..
+      dockerfile: services/scanner/Dockerfile
+    env_file: .env
+    ports:
+      - "127.0.0.1:8787:8787"
+    networks:
+      - scanner_net
+    environment:
+      PORT: "8787"
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 3G
+    pids_limit: 256
+    init: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/pwuser/.cache
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8787/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  scanner_net:
+    external: true
+    name: dar-scanner-net

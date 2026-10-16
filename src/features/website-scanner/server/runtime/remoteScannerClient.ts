@@ -5,10 +5,12 @@ import {
 import type { WebsiteScannerRuntime } from "@/features/website-scanner/server/runtime/types";
 import { WebsiteScanError } from "@/features/website-scanner/types/scanErrors";
 import type {
+  WebsiteDiscoverCrawlResult,
   WebsitePageScanRequest,
   WebsitePageScanResult,
 } from "@/features/website-scanner/types/scanTypes";
 import {
+  DISCOVER_CRAWL_TOTAL_TIMEOUT_MS,
   PAGE_TOTAL_SCAN_TIMEOUT_MS,
 } from "@/features/website-scanner/constants/scanLimits";
 import { VISUAL_LOCATOR_TIMEOUT_MS } from "@/features/website-scanner/constants/visualLocatorLimits";
@@ -71,6 +73,67 @@ export class RemoteScannerClient implements WebsiteScannerRuntime {
       }
 
       return body as WebsitePageScanResult;
+    } catch (err) {
+      if (err instanceof WebsiteScanError) throw err;
+      throw new WebsiteScanError(
+        "SCANNER_UNAVAILABLE",
+        "Website scanning is temporarily unavailable.",
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async discoverCrawlUrls(startUrl: string): Promise<WebsiteDiscoverCrawlResult> {
+    const base = getScannerServiceUrl();
+    const token = getScannerServiceToken();
+    if (!base || !token) {
+      throw new WebsiteScanError(
+        "SCANNER_UNAVAILABLE",
+        "Website scanning is temporarily unavailable.",
+      );
+    }
+
+    const url = `${base.replace(/\/$/, "")}/v1/discover-crawl`;
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () => controller.abort(),
+      DISCOVER_CRAWL_TOTAL_TIMEOUT_MS + 10_000,
+    );
+
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ siteUrl: startUrl }),
+        signal: controller.signal,
+      });
+
+      if (res.status === 401 || res.status === 403) {
+        throw new WebsiteScanError(
+          "SCANNER_UNAVAILABLE",
+          "Website scanning is temporarily unavailable.",
+        );
+      }
+
+      const body = (await res.json()) as
+        | WebsiteDiscoverCrawlResult
+        | { error?: string; code?: string };
+
+      if (!res.ok) {
+        const code = (body as { code?: string }).code;
+        const message =
+          (body as { error?: string }).error ?? "Site discovery failed.";
+        throw new WebsiteScanError(
+          (code as WebsiteScanError["code"]) ?? "SCANNER_UNAVAILABLE",
+          message,
+        );
+      }
+
+      return body as WebsiteDiscoverCrawlResult;
     } catch (err) {
       if (err instanceof WebsiteScanError) throw err;
       throw new WebsiteScanError(

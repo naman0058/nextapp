@@ -41,7 +41,10 @@ Artifacts and guidance:
 
 - [services/scanner/deploy/network-policy.example.yaml](services/scanner/deploy/network-policy.example.yaml)
 - [services/scanner/deploy/README.md](services/scanner/deploy/README.md)
-- [services/scanner/docker-compose.yml](services/scanner/docker-compose.yml)
+- [services/scanner/docker-compose.yml](services/scanner/docker-compose.yml) (generic dev/staging)
+- [scanner-worker/docker-compose.yml](scanner-worker/docker-compose.yml) — **Hostinger production** (`dar-scanner-net`, `127.0.0.1:8787`)
+- [SCANNER_WORKER_DEPLOYMENT.md](SCANNER_WORKER_DEPLOYMENT.md) — deploy steps, audit summary, Cloudflare tunnel
+- [SCANNER_SECURITY_GATE.md](SCANNER_SECURITY_GATE.md) — public enablement gates (**BLOCKED**)
 
 ## Secrets and logging
 

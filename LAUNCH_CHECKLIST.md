@@ -53,8 +53,11 @@ Use before public deployment. S4 (2026-10-15) categories below.
 
 The website accessibility scanner is **not** publicly production-ready until every item below is checked.
 
-- [ ] Remote scanner worker deployed
-- [ ] Network egress policy applied (not just example YAML committed)
+**Remote architecture:** With `SCANNER_RUNTIME=remote` on Vercel, browser work (scan, visual locator, crawl discovery) runs on the worker only — see **REMOTE SCANNER ARCHITECTURE: PASS** in [`SCANNER_WORKER_DEPLOYMENT.md`](./SCANNER_WORKER_DEPLOYMENT.md). Public CTA remains off until Layer-2 + checklist below.
+
+- [ ] Remote scanner worker deployed ([`SCANNER_WORKER_DEPLOYMENT.md`](./SCANNER_WORKER_DEPLOYMENT.md), Hostinger `scanner-worker/`)
+- [ ] Crawl discovery uses remote worker in production (`POST /v1/discover-crawl`; tests: `discoverCrawlRemote.test.ts`)
+- [ ] Network egress policy applied and verified (`scanner-worker/scripts/verify-egress.sh`; see [`SCANNER_SECURITY_GATE.md`](./SCANNER_SECURITY_GATE.md))
 - [ ] Metadata endpoint blocked at network layer
 - [ ] Production loopback bypass disabled (guard verified; `WEBSITE_SCANNER_TEST_ALLOW_LOOPBACK` unset)
 - [ ] Redirect-to-private integration test passed in CI (`npm run test:security`)

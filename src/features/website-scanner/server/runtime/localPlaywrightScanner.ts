@@ -6,7 +6,9 @@ import {
 import { withScanConcurrency } from "@/features/website-scanner/server/playwright/scanSemaphore";
 import { visualizeIssueInContext } from "@/features/website-scanner/server/visualLocator/visualizeIssueInContext";
 import type { WebsiteScannerRuntime } from "@/features/website-scanner/server/runtime/types";
+import { discoverCrawlUrls as discoverCrawlUrlsImpl } from "@/features/website-scanner/server/discover/discoverCrawlUrls";
 import type {
+  WebsiteDiscoverCrawlResult,
   WebsitePageScanRequest,
   WebsitePageScanResult,
 } from "@/features/website-scanner/types/scanTypes";
@@ -31,6 +33,10 @@ export class LocalPlaywrightScanner implements WebsiteScannerRuntime {
         await context.close().catch(() => undefined);
       }
     });
+  }
+
+  async discoverCrawlUrls(startUrl: string): Promise<WebsiteDiscoverCrawlResult> {
+    return discoverCrawlUrlsImpl(startUrl);
   }
 
   async visualizeIssue(

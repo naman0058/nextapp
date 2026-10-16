@@ -7,3 +7,11 @@ node_modules
 test-fixtures
 uploads
 reports
+
+
+node_modules
+**/node_modules
+.git
+.env
+.env.*
+scanner-worker/.env

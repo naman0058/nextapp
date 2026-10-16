@@ -36,6 +36,10 @@ yarn-error.log*
 .env.*.local
 scanner-worker/.env
 
+
+node_modules/
+**/node_modules/
+
 # vercel
 .vercel
 

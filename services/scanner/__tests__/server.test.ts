@@ -2,6 +2,14 @@ import http from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { verifyScannerBearerToken } from "../auth";
 import { createScannerHttpServer } from "../server";
+
+const { checkChromiumReady } = vi.hoisted(() => ({
+  checkChromiumReady: vi.fn(),
+}));
+
+vi.mock("../chromiumReady", () => ({
+  checkChromiumReady,
+}));
 import type { WebsiteScannerRuntime } from "@/features/website-scanner/server/runtime/types";
 import type { WebsitePageScanResult } from "@/features/website-scanner/types/scanTypes";
 import { WebsiteScanError } from "@/features/website-scanner/types/scanErrors";
@@ -73,6 +81,8 @@ describe("createScannerHttpServer", () => {
   let mockScanner: WebsiteScannerRuntime;
 
   beforeEach(async () => {
+    checkChromiumReady.mockReset();
+    checkChromiumReady.mockResolvedValue(true);
     mockScanner = {
       scanPage: vi.fn().mockResolvedValue(minimalScanResult()),
       discoverCrawlUrls: vi.fn().mockResolvedValue({
@@ -126,6 +136,21 @@ describe("createScannerHttpServer", () => {
       ok: true,
       runtime: "playwright",
     });
+    expect(checkChromiumReady).not.toHaveBeenCalled();
+  });
+
+  it("GET /ready returns 200 when chromium probe succeeds", async () => {
+    checkChromiumReady.mockResolvedValue(true);
+    const res = await request({ path: "/ready", method: "GET" });
+    expect(res.status).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({ ok: true, chromium: true });
+  });
+
+  it("GET /ready returns 503 when chromium probe fails", async () => {
+    checkChromiumReady.mockResolvedValue(false);
+    const res = await request({ path: "/ready", method: "GET" });
+    expect(res.status).toBe(503);
+    expect(JSON.parse(res.body)).toEqual({ ok: false, chromium: false });
   });
 
   it("POST /v1/scan-page returns 401 without auth", async () => {

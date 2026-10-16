@@ -1,6 +1,6 @@
 import http from "node:http";
-import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { checkChromiumReady } from "./chromiumReady";
 import { assertLoopbackBypassDisabledInProduction } from "../../src/features/website-scanner/server/security/testBypass";
 import { LocalPlaywrightScanner } from "@/features/website-scanner/server/runtime/localPlaywrightScanner";
 import type { WebsiteScannerRuntime } from "@/features/website-scanner/server/runtime/types";
@@ -115,26 +115,6 @@ function parseDiscoverCrawlRequest(raw: string): string | null {
   }
 }
 
-let chromiumReadyCache: { at: number; ok: boolean } | null = null;
-
-function checkChromiumReady(): boolean {
-  const now = Date.now();
-  if (chromiumReadyCache && now - chromiumReadyCache.at < 60_000) {
-    return chromiumReadyCache.ok;
-  }
-  try {
-    execFileSync("npx", ["playwright", "version"], {
-      timeout: 10_000,
-      stdio: "ignore",
-    });
-    chromiumReadyCache = { at: now, ok: true };
-    return true;
-  } catch {
-    chromiumReadyCache = { at: now, ok: false };
-    return false;
-  }
-}
-
 export function createScannerHttpServer(
   scanner: WebsiteScannerRuntime = new LocalPlaywrightScanner(),
   token = process.env.SCANNER_SERVICE_TOKEN?.trim(),
@@ -147,7 +127,7 @@ export function createScannerHttpServer(
     }
 
     if (req.method === "GET" && req.url === "/ready") {
-      const ready = checkChromiumReady();
+      const ready = await checkChromiumReady();
       res.writeHead(ready ? 200 : 503, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ ok: ready, chromium: ready }));
       return;

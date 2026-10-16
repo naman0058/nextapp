@@ -1,0 +1,36 @@
+{
+  "title": "How to write descriptive alt text for social images",
+  "slug": "how-to-write-descriptive-alt-text-social-images",
+  "content": "# How to write descriptive alt text for social images\n\nAlt text helps people who use screen readers understand non-text content in your posts.\n\n## Start with the purpose\n\nDescribe what matters for the message, not every decorative detail.\n\n## Link to your workflow\n\nRun [social preflight](/social-media-accessibility-checker) before scheduling.\n",
+  "meta_title": "How to write descriptive alt text for social images",
+  "meta_description": "Practical alt text patterns for social teams, without keyword stuffing or redundant phrases.",
+  "category": "Social Media Accessibility",
+  "author_id": "editorial",
+  "status": "draft",
+  "meta_keywords": ["alt text", "social media accessibility"],
+  "tags": ["alt text", "social media"],
+  "answer_summary": "Write alt text that conveys the image’s role in the post, using clear language and avoiding redundant phrases like “image of”.",
+  "key_takeaways": [
+    "Describe purpose, not every pixel.",
+    "Skip alt text for purely decorative images when the platform allows it.",
+    "Preflight captions and alt text before publish."
+  ],
+  "sources_json": [
+    {
+      "title": "W3C — Images Concept",
+      "url": "https://www.w3.org/WAI/WCAG21/Understanding/non-text-content.html",
+      "publisher": "W3C WAI"
+    }
+  ],
+  "entities_json": [
+    {
+      "name": "Alt text",
+      "type": "Concept",
+      "description": "Text alternative for non-text content."
+    }
+  ],
+  "language_code": "en-US",
+  "target_country": "US",
+  "reading_time_minutes": 4,
+  "internal_links_count": 1
+}

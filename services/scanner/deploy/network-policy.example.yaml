@@ -1,0 +1,44 @@
+# Example Kubernetes NetworkPolicy — restrict scanner worker egress.
+# Adjust namespace/pod labels and CIDRs for your cluster CNI.
+# This file is NOT sufficient alone on all platforms; see deploy/README.md.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: website-scanner-egress
+  namespace: accessibility
+spec:
+  podSelector:
+    matchLabels:
+      app: website-scanner
+  policyTypes:
+    - Egress
+  egress:
+    # DNS (required for hostname resolution; does not stop all rebinding scenarios)
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # IPv4 web egress — NOT equivalent to "public IPs only" (see README).
+    # Many CNIs only honor ipBlock for IPv4; add separate IPv6 policies elsewhere:
+    #   ::1/128 (loopback), fc00::/7 (ULA), fe80::/10 (link-local)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8 # RFC1918
+              - 172.16.0.0/12 # RFC1918
+              - 192.168.0.0/16 # RFC1918
+              - 100.64.0.0/10 # CGNAT
+              - 127.0.0.0/8 # loopback
+              - 169.254.0.0/16 # link-local / cloud metadata (e.g. 169.254.169.254)
+              - 0.0.0.0/8 # "this network"
+              # Multicast/reserved (224.0.0.0/4, 240.0.0.0/4) remain allowed by this
+              # simplified rule — tighten with cloud SG/NACL or egress proxy as needed.
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80

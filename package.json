@@ -1,26 +1,57 @@
 {
-  "name": "acps-scaffold",
+  "name": "accessible-content-preflight-suite",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:scanner": "vitest run src/features/website-scanner",
+    "test:security": "vitest run src/features/website-scanner",
+    "test:visual-locator": "vitest run src/features/website-scanner/__tests__/visualLocator.token.test.ts",
+    "test:developer-ticket": "vitest run src/features/website-scanner/__tests__/developerTicket.test.ts",
+    "test:sample-report": "vitest run src/features/sample-report",
+    "test:blog": "vitest run src/lib/blog",
+    "test:ai-remediation": "vitest run src/lib/ai/remediation",
+    "test:seo": "vitest run src/lib/seo",
+    "audit:seo": "npx tsx scripts/generate-seo-route-inventory.ts && npx tsx scripts/audit-seo.ts",
+    "test:accessibility": "vitest run src/features/accessibility-intelligence src/features/accessibility/utils/helpers/__tests__/hashtagSegmentation.test.ts src/features/website-scanner/__tests__/fixWorkflowStatus.test.ts src/features/website-scanner/__tests__/startHere.test.ts src/features/website-scanner/__tests__/resultGrouping.test.ts src/features/website-scanner/__tests__/aiGuidanceGrouping.test.ts src/features/website-scanner/__tests__/sitemap.parse.test.ts src/features/website-scanner/__tests__/urlPattern.test.ts src/features/website-scanner/__tests__/siteBatchRegistry.test.ts src/features/website-scanner/__tests__/compareViewport.test.ts src/features/website-scanner/__tests__/websiteScanRateLimitCost.test.ts",
+    "generate:axe-coverage": "npx tsx scripts/generateAxeRuleCoverage.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@react-pdf/renderer": "^4.9.0",
+    "@vercel/blob": "^2.8.2",
+    "exceljs": "^4.4.0",
+    "fast-xml-parser": "^5.11.2",
+    "ipaddr.js": "^2.5.0",
+    "jszip": "^3.10.2",
+    "mongoose": "^9.11.2",
     "next": "16.4.0",
+    "openai": "^7.30.0",
+    "papaparse": "^5.7.0",
+    "playwright": "^1.64.1",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "react-markdown": "^10.1.0",
+    "rehype-sanitize": "^6.0.0",
+    "remark-gfm": "^4.0.1",
+    "robots-parser": "^3.0.1",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
+    "@types/papaparse": "^5.5.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^2.1.9"
   }
 }

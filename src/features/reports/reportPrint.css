@@ -1,0 +1,21 @@
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .acps-report-print-root,
+  .acps-report-print-root * {
+    visibility: visible;
+  }
+
+  .acps-report-print-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+  .acps-report-no-print {
+    display: none !important;
+  }
+}

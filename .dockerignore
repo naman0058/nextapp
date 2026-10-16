@@ -1,0 +1,9 @@
+.env
+.env.*
+.git
+.next
+node_modules
+**/*.md
+test-fixtures
+uploads
+reports

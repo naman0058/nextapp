@@ -1,0 +1,25 @@
+name: Website scanner security
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    env:
+      WEBSITE_SCANNER_INTEGRATION: "1"
+      WEBSITE_SCANNER_TEST_ALLOW_LOOPBACK: "1"
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:security
+      - run: npm run build

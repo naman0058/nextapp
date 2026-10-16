@@ -1,0 +1,6 @@
+export const DEVELOPER_TICKET_VERSION = "1";
+
+export const MAX_TICKET_TITLE_CHARS = 120;
+export const MAX_TICKET_SELECTORS = 5;
+export const MAX_TICKET_HTML_EXAMPLES = 3;
+export const MAX_TICKET_PAGE_EXAMPLES = 10;

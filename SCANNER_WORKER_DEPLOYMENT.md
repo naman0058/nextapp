@@ -112,7 +112,9 @@ Worker auth is **Bearer only** — Cloudflare does not replace token checks.
 
 ## Chromium sandbox
 
-Image: `mcr.microsoft.com/playwright:v1.64.1-noble`, process user **`pwuser`**, no `--no-sandbox`, no privileged mode. Sandbox enabled via official Playwright image defaults.
+Image: `mcr.microsoft.com/playwright:v1.64.1-noble`, process user **`pwuser`**, no `--no-sandbox`, no privileged mode. Sandbox enabled via official Playwright image defaults (Chromium preinstalled in the base image; no extra `playwright install` in the Dockerfile).
+
+Container starts with `npm --prefix services/scanner start`; **`tsx` is installed at image build** via `npm ci --omit=dev --prefix services/scanner` (no runtime `npx` fetch). Compose PID cap: `deploy.resources.limits.pids: 256` (not top-level `pids_limit`).
 
 ## Logs and rollback
 

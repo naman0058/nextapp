@@ -18,7 +18,7 @@ services:
         limits:
           cpus: "2"
           memory: 3G
-    pids_limit: 256
+          pids: 256
     init: true
     cap_drop:
       - ALL

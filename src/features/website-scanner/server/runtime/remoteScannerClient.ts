@@ -11,7 +11,7 @@ import type {
 } from "@/features/website-scanner/types/scanTypes";
 import {
   DISCOVER_CRAWL_TOTAL_TIMEOUT_MS,
-  PAGE_TOTAL_SCAN_TIMEOUT_MS,
+  SCAN_PAGE_REMOTE_FETCH_TIMEOUT_MS,
 } from "@/features/website-scanner/constants/scanLimits";
 import { VISUAL_LOCATOR_TIMEOUT_MS } from "@/features/website-scanner/constants/visualLocatorLimits";
 import type {
@@ -36,7 +36,7 @@ export class RemoteScannerClient implements WebsiteScannerRuntime {
     const controller = new AbortController();
     const timer = setTimeout(
       () => controller.abort(),
-      PAGE_TOTAL_SCAN_TIMEOUT_MS + 10_000,
+      SCAN_PAGE_REMOTE_FETCH_TIMEOUT_MS,
     );
 
     try {
@@ -75,9 +75,14 @@ export class RemoteScannerClient implements WebsiteScannerRuntime {
       return body as WebsitePageScanResult;
     } catch (err) {
       if (err instanceof WebsiteScanError) throw err;
+      const aborted =
+        err instanceof Error &&
+        (err.name === "AbortError" || err.message.includes("aborted"));
       throw new WebsiteScanError(
         "SCANNER_UNAVAILABLE",
-        "Website scanning is temporarily unavailable.",
+        aborted
+          ? "This page took too long to scan. Try again or scan fewer pages at once."
+          : "Website scanning is temporarily unavailable.",
       );
     } finally {
       clearTimeout(timer);

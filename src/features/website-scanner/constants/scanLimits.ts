@@ -6,6 +6,9 @@ export const SITE_SCAN_CONCURRENCY = 1;
 export const SITE_CRAWL_DELAY_MS = 600;
 export const PAGE_NAVIGATION_TIMEOUT_MS = 20_000;
 export const PAGE_TOTAL_SCAN_TIMEOUT_MS = 30_000;
+/** Next.js → remote worker: page scan can exceed PAGE_TOTAL_SCAN_TIMEOUT_MS during axe analyze. */
+export const SCAN_PAGE_REMOTE_FETCH_TIMEOUT_MS =
+  PAGE_TOTAL_SCAN_TIMEOUT_MS + 45_000;
 /** Remote worker crawl discovery (many pages × navigation + politeness). */
 export const DISCOVER_CRAWL_TOTAL_TIMEOUT_MS = 10 * 60 * 1000;
 export const MAX_DISCOVERED_LINKS_PER_PAGE = 100;

@@ -16,6 +16,10 @@ import { assertScannerProductionConfig } from "@/features/website-scanner/server
 import { getWebsiteScannerAvailability } from "@/features/website-scanner/server/config/websiteScannerAvailability";
 import { websiteScanPageRequestCost } from "@/features/website-scanner/server/websiteScanRateLimitCost";
 import { checkWebsiteScanRateLimit } from "@/lib/rateLimit/checkWebsiteScanRateLimit";
+import { SCAN_PAGE_REMOTE_FETCH_TIMEOUT_MS } from "@/features/website-scanner/constants/scanLimits";
+
+/** Allow remote Playwright + axe to finish on serverless (ms). */
+export const maxDuration = Math.ceil(SCAN_PAGE_REMOTE_FETCH_TIMEOUT_MS / 1000) + 15;
 
 function noStoreJson(body: unknown, status: number) {
   return NextResponse.json(body, {
@@ -128,7 +132,12 @@ export async function POST(request: Request) {
             : 400;
       return noStoreJson({ code: err.code, error: err.userMessage }, status);
     }
-    console.error("[website-scan]", scanId, "unexpected");
+    console.error(
+      "[website-scan]",
+      scanId,
+      "unexpected",
+      err instanceof Error ? err.message : err,
+    );
     return noStoreJson(
       {
         code: "SCANNER_UNAVAILABLE",

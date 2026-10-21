@@ -12,6 +12,7 @@ function minimalGroup(): RootCauseGroup {
     label: "Navigation buttons",
     affectedPages: ["https://example.com/"],
     totalOccurrences: 12,
+    retainedEvidenceCount: 12,
     representativeSelectors: ["nav button"],
     representativeEvidence: [
       {

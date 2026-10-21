@@ -95,8 +95,28 @@ describe("groupRootCauses", () => {
     expect(groups).toHaveLength(1);
     expect(groups[0]?.ruleId).toBe("color-contrast");
     expect(groups[0]?.totalOccurrences).toBe(82);
+    expect(groups[0]?.retainedEvidenceCount).toBe(82);
     expect(groups[0]?.groupType).toBe("rule_consolidated");
     expect(groups[0]?.likelySharedComponent).toBe(false);
+  });
+
+  it("uses scanner totalNodeCount when retained evidence nodes are capped", () => {
+    const nodes = Array.from({ length: 20 }, (_, i) =>
+      violationNode(`#el-${i}`, `sig-${i}`),
+    );
+    const violation = colorContrastViolation(nodes);
+    violation.totalNodeCount = 82;
+    const groups = groupRootCauses([
+      pageWithViolations("https://example.com/", [violation]),
+    ]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.totalOccurrences).toBe(82);
+    expect(groups[0]?.retainedEvidenceCount).toBe(20);
+    const intel = buildSiteScanIntelligence([
+      pageWithViolations("https://example.com/", [violation]),
+    ]);
+    expect(intel.fixPlan[0]?.affectedElements).toBe(82);
+    expect(intel.rootCauseGroups[0]?.retainedEvidenceCount).toBe(20);
   });
 
   it("keeps genuinely distinct shared clusters separate from consolidated orphans", () => {

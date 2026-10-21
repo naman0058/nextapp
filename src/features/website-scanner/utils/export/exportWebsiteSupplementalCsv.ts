@@ -4,6 +4,11 @@ import type { SiteScanIntelligence } from "@/features/accessibility-intelligence
 import type { WebsiteScanSessionState } from "@/features/website-scanner/types/websiteSession";
 import { sanitizeExportUrl } from "@/features/website-scanner/utils/export/sanitizeExportUrl";
 import { collectPageScanResults } from "@/features/website-scanner/utils/collectPageScanResults";
+import {
+  buildPageScanDiagnostic,
+  formatEvidenceReportingLabel,
+  formatPageExecutionLabel,
+} from "@/features/website-scanner/utils/pageScanDiagnostics";
 
 function downloadCsv(filename: string, rows: Record<string, string>[]) {
   const csv = Papa.unparse(rows);
@@ -32,7 +37,12 @@ export function exportWebsitePageInventoryCsv(session: WebsiteScanSessionState):
       ),
       title: sanitizeCsvCellForSpreadsheet(primary?.pageTitle ?? ""),
       viewports: p.desktopResult && p.mobileResult ? "desktop; mobile" : primary?.viewport.label ?? "",
-      completeness: primary?.scanCompleteness ?? "complete",
+      completeness: primary
+        ? (() => {
+            const d = buildPageScanDiagnostic(primary);
+            return `Execution: ${formatPageExecutionLabel(d.pageExecution)} · Evidence: ${formatEvidenceReportingLabel(d.evidenceReporting)}`;
+          })()
+        : "—",
       unique_rules: String(issues),
     });
   }

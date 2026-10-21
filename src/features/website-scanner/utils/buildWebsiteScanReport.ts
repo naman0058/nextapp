@@ -12,9 +12,12 @@ import { WEBSITE_MANUAL_REVIEW_ITEMS } from "@/features/website-scanner/constant
 import type { WebsitePageScanResult } from "@/features/website-scanner/types/scanTypes";
 import type { WebsiteScanSessionState } from "@/features/website-scanner/types/websiteSession";
 import {
-  aggregateScanCompleteness,
-  scanCompletenessLabel,
-} from "@/features/website-scanner/utils/scanCompletenessAggregate";
+  aggregateEvidenceReporting,
+  aggregatePageExecution,
+  buildSiteScanDiagnostics,
+  formatEvidenceReportingLabel,
+  formatPageExecutionLabel,
+} from "@/features/website-scanner/utils/pageScanDiagnostics";
 import { attachAiRemediationAppendix } from "@/features/reports/utils/attachAiRemediationAppendix";
 import { collectWebsiteRemediationCandidates } from "@/lib/ai/remediation/report";
 import { websiteAiRemediationSelectionFromSession } from "@/features/website-scanner/utils/websiteReportAiSelection";
@@ -171,7 +174,9 @@ export function buildWebsiteScanReport(
   options?: BuildWebsiteScanReportOptions,
 ): AccessibilityPreflightReport {
   const findings = buildFindings(pages, session);
-  const completeness = aggregateScanCompleteness(pages);
+  const pageExecution = aggregatePageExecution(pages);
+  const evidenceReporting = aggregateEvidenceReporting(pages);
+  const diagnostics = buildSiteScanDiagnostics(pages);
   const executive = buildExecutiveSummary(session);
   const automatedSection: ReportSection = {
     id: "website-automated",
@@ -248,7 +253,12 @@ export function buildWebsiteScanReport(
       "Website scan evaluates loaded page state only; interactive states may need separate manual testing.",
       "Site crawl is limited to configured same-origin page count, not the entire website.",
       "Scanner does not access login-protected or private pages.",
-      `Scan completeness: ${scanCompletenessLabel(completeness)}.`,
+      `Page execution: ${formatPageExecutionLabel(pageExecution)}.`,
+      `Evidence reporting: ${formatEvidenceReportingLabel(evidenceReporting)}.`,
+      ...diagnostics.flatMap((d) => [
+        ...d.executionReasons,
+        ...d.evidenceReasons,
+      ]),
       ...executive,
       session.siteIntelligence?.priorityExplanation ??
         "Remediation priority considers impact and repetition; it is not a legal-risk rating.",

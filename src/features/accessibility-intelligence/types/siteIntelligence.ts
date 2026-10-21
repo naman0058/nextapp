@@ -40,7 +40,10 @@ export type RootCauseGroup = {
   groupType: RootCauseGroupType;
   label: string;
   affectedPages: string[];
+  /** Total affected occurrences from scanner metadata (not retained evidence count). */
   totalOccurrences: number;
+  /** Detailed node/evidence records retained in this group (may be less than totalOccurrences). */
+  retainedEvidenceCount: number;
   representativeSelectors: string[];
   representativeEvidence: AccessibilityEvidence[];
   likelySharedComponent: boolean;

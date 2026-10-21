@@ -32,6 +32,7 @@ function minimalGroup(ruleId: string): RootCauseGroup {
     label: `Sample ${ruleId}`,
     affectedPages: ["https://example.com/"],
     totalOccurrences: 3,
+    retainedEvidenceCount: 3,
     representativeSelectors: ["button.menu"],
     representativeEvidence: [
       {

@@ -1,23 +1,46 @@
 import type { WebsitePageScanResult } from "@/features/website-scanner/types/scanTypes";
 import {
-  aggregateScanCompleteness,
-  scanCompletenessLabel,
-} from "@/features/website-scanner/utils/scanCompletenessAggregate";
+  aggregateEvidenceReporting,
+  aggregatePageExecution,
+  buildSiteScanDiagnostics,
+  formatEvidenceReportingLabel,
+  formatPageExecutionLabel,
+} from "@/features/website-scanner/utils/pageScanDiagnostics";
 
 type Props = { pages: WebsitePageScanResult[] };
 
 export function ScanQualityPanel({ pages }: Props) {
-  const level = aggregateScanCompleteness(pages);
-  const partialPages = pages.filter(
-    (p) => p.scanCompleteness !== "complete",
-  ).length;
+  const diagnostics = buildSiteScanDiagnostics(pages);
+  const pageExecution = aggregatePageExecution(pages);
+  const evidenceReporting = aggregateEvidenceReporting(pages);
+
   return (
-    <div className="text-sm">
+    <div className="space-y-2 text-sm">
       <p>
-        Scan completeness:{" "}
-        <strong>{scanCompletenessLabel(level)}</strong>
-        {partialPages > 0 && ` · ${partialPages} page(s) with limits`}
+        Page execution:{" "}
+        <strong>{formatPageExecutionLabel(pageExecution)}</strong>
       </p>
+      <p>
+        Evidence reporting:{" "}
+        <strong>{formatEvidenceReportingLabel(evidenceReporting)}</strong>
+        {evidenceReporting === "limited" &&
+          diagnostics
+            .flatMap((d) => d.evidenceReasons)
+            .slice(0, 2)
+            .map((reason) => (
+              <span key={reason} className="block text-muted">
+                {reason}
+              </span>
+            ))}
+      </p>
+      {diagnostics
+        .flatMap((d) => d.executionReasons)
+        .slice(0, 3)
+        .map((reason) => (
+          <p key={reason} className="text-muted">
+            {reason}
+          </p>
+        ))}
     </div>
   );
 }

@@ -36,25 +36,67 @@ function isDistinctSharedCluster(list: Occurrence[]): boolean {
   return false;
 }
 
+function scannerTotalForRule(
+  pages: WebsitePageScanResult[],
+  ruleId: string,
+  pageUrls: ReadonlySet<string>,
+): number {
+  let total = 0;
+  for (const page of pages) {
+    if (!pageUrls.has(page.finalUrl)) continue;
+    for (const v of page.violations) {
+      if (v.id !== ruleId || v.isBestPractice) continue;
+      total += v.totalNodeCount;
+    }
+  }
+  return total;
+}
+
+function resolveTotalAffectedOccurrences(
+  list: Occurrence[],
+  pages: WebsitePageScanResult[],
+  pageSet: ReadonlySet<string>,
+  groupType: RootCauseGroup["groupType"],
+  retained: number,
+): number {
+  const ruleId = list[0]!.ruleId;
+  const scannerTotal = scannerTotalForRule(pages, ruleId, pageSet);
+  if (groupType === "rule_consolidated") {
+    return scannerTotal > 0 ? scannerTotal : retained;
+  }
+  if (groupType === "isolated" && pageSet.size === 1) {
+    return scannerTotal > 0 ? Math.max(retained, scannerTotal) : retained;
+  }
+  return retained;
+}
+
 function buildGroupFromOccurrences(
   list: Occurrence[],
   id: string,
+  pages: WebsitePageScanResult[],
   groupTypeOverride?: RootCauseGroup["groupType"],
 ): RootCauseGroup {
   const first = list[0]!;
   const pageSet = new Set(list.map((o) => o.pageUrl));
   const pagesCount = pageSet.size;
-  const occCount = list.length;
-  const confidence = groupConfidence(
-    pagesCount,
-    occCount,
-    list.every((o) => o.domSignature === first.domSignature),
-  );
+  const retainedEvidenceCount = list.length;
   const groupType =
     groupTypeOverride ??
-    (pagesCount === 1 && occCount === 1
+    (pagesCount === 1 && retainedEvidenceCount === 1
       ? "isolated"
       : inferGroupType(first.landmark, first.tag, first.role));
+  const totalOccurrences = resolveTotalAffectedOccurrences(
+    list,
+    pages,
+    pageSet,
+    groupType,
+    retainedEvidenceCount,
+  );
+  const confidence = groupConfidence(
+    pagesCount,
+    totalOccurrences,
+    list.every((o) => o.domSignature === first.domSignature),
+  );
   const likelyShared =
     groupType !== "rule_consolidated" &&
     confidence !== "low" &&
@@ -70,13 +112,14 @@ function buildGroupFromOccurrences(
     groupType,
     label: buildGroupLabel(first.ruleId, groupType, first.help),
     affectedPages: [...pageSet],
-    totalOccurrences: occCount,
+    totalOccurrences,
+    retainedEvidenceCount,
     representativeSelectors: uniqueSelectors.slice(0, 50),
     representativeEvidence: list.slice(0, 5).map((o) => o.evidence),
     likelySharedComponent: likelyShared,
     remediationReach: {
       pages: pagesCount,
-      occurrences: occCount,
+      occurrences: totalOccurrences,
     },
   };
 }
@@ -148,7 +191,7 @@ export function groupRootCauses(
   for (const list of microBuckets.values()) {
     if (isDistinctSharedCluster(list)) {
       sharedGroups.push(
-        buildGroupFromOccurrences(list, `rcg-${idx++}`),
+        buildGroupFromOccurrences(list, `rcg-${idx++}`, pages),
       );
       continue;
     }
@@ -163,12 +206,17 @@ export function groupRootCauses(
     if (list.length === 0) continue;
     if (list.length === 1) {
       consolidatedGroups.push(
-        buildGroupFromOccurrences(list, `rcg-${idx++}`, "isolated"),
+        buildGroupFromOccurrences(list, `rcg-${idx++}`, pages, "isolated"),
       );
       continue;
     }
     consolidatedGroups.push(
-      buildGroupFromOccurrences(list, `rcg-${idx++}`, "rule_consolidated"),
+      buildGroupFromOccurrences(
+        list,
+        `rcg-${idx++}`,
+        pages,
+        "rule_consolidated",
+      ),
     );
   }
 

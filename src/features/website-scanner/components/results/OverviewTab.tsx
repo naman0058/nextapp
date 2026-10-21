@@ -9,9 +9,12 @@ import { WcagCoverageMatrix } from "@/features/website-scanner/components/result
 import { ScanQualityPanel } from "@/features/website-scanner/components/results/ScanQualityPanel";
 import { ViewportComparisonPanel } from "@/features/website-scanner/components/results/ViewportComparisonPanel";
 import {
-  aggregateScanCompleteness,
-  scanCompletenessLabel,
-} from "@/features/website-scanner/utils/scanCompletenessAggregate";
+  aggregateEvidenceReporting,
+  aggregatePageExecution,
+  buildSiteScanDiagnostics,
+  formatEvidenceReportingLabel,
+  formatPageExecutionLabel,
+} from "@/features/website-scanner/utils/pageScanDiagnostics";
 import {
   getStartHereItems,
   pagesByIssueCount,
@@ -26,13 +29,11 @@ type Props = {
 
 export function OverviewTab({ intel, completedPages, totalIncomplete }: Props) {
   const { dispatch } = useWebsiteScanSession();
-  const completeness = aggregateScanCompleteness(completedPages);
-  const pageLoadIncomplete =
-    completeness === "partial" ||
-    completeness === "limited" ||
-    completeness === "failed";
-  const axeIncompleteOnly =
-    !pageLoadIncomplete && totalIncomplete > 0;
+  const pageExecution = aggregatePageExecution(completedPages);
+  const evidenceReporting = aggregateEvidenceReporting(completedPages);
+  const diagnostics = buildSiteScanDiagnostics(completedPages);
+  const executionReasons = diagnostics.flatMap((d) => d.executionReasons);
+  const evidenceReasons = diagnostics.flatMap((d) => d.evidenceReasons);
   const startHere = intel ? getStartHereItems(intel.fixPlan) : [];
   const rootGroups = intel
     ? sortRootCauseGroups(intel.rootCauseGroups).slice(0, 5)
@@ -45,19 +46,33 @@ export function OverviewTab({ intel, completedPages, totalIncomplete }: Props) {
 
   return (
     <div className="space-y-6">
-      {pageLoadIncomplete && (
+      {pageExecution !== "complete" && (
         <div role="alert" className="rounded-lg border border-amber-600 bg-amber-50 p-4 text-sm dark:bg-amber-950/30">
-          <strong>Page scan completeness: {scanCompletenessLabel(completeness)}.</strong>{" "}
-          Some pages may have loaded partially or hit scanner limits (timeouts, DOM
-          caps, or network budgets). Treat missing coverage as unknown risk until you
-          rescan or review manually.
+          <strong>
+            Page execution: {formatPageExecutionLabel(pageExecution)}.
+          </strong>{" "}
+          {executionReasons.length > 0
+            ? executionReasons.join(" ")
+            : "The page scan did not fully complete. Treat missing coverage as unknown risk until you rescan."}
         </div>
       )}
-      {axeIncompleteOnly && (
+      {evidenceReporting === "limited" && (
         <div role="status" className="rounded-lg border border-border bg-muted/30 p-4 text-sm">
-          <strong>Axe manual checks: {totalIncomplete} item(s).</strong> Pages loaded
-          for scanning, but axe could not fully automate every rule on this run. See
-          Human review and Issues marked “Needs manual confirmation”.
+          <strong>
+            Evidence reporting: {formatEvidenceReportingLabel(evidenceReporting)}.
+          </strong>{" "}
+          {evidenceReasons.length > 0
+            ? evidenceReasons.join(" ")
+            : "Some affected elements are summarized without full per-node detail."}
+        </div>
+      )}
+      {totalIncomplete > 0 && (
+        <div role="status" className="rounded-lg border border-border bg-muted/30 p-4 text-sm">
+          <strong>
+            Manual confirmation required: {totalIncomplete} automated check
+            {totalIncomplete === 1 ? "" : "s"} could not be fully determined.
+          </strong>{" "}
+          See Human review and Issues marked “Needs manual confirmation”.
         </div>
       )}
 
@@ -76,7 +91,10 @@ export function OverviewTab({ intel, completedPages, totalIncomplete }: Props) {
         />
         <SummaryCard label="Human review (axe incomplete)" value={totalIncomplete} />
         <SummaryCard label="Pages scanned" value={completedPages.length} />
-        <SummaryCard label="Completeness" value={scanCompletenessLabel(completeness)} />
+        <SummaryCard
+          label="Page execution"
+          value={formatPageExecutionLabel(pageExecution)}
+        />
       </div>
 
       {noViolations ? (
@@ -124,7 +142,7 @@ export function OverviewTab({ intel, completedPages, totalIncomplete }: Props) {
 
           {rootGroups.length > 0 && (
             <section>
-              <h3 className="font-display text-lg font-bold">Root cause summary</h3>
+              <h3 className="font-display text-lg font-bold">Remediation groups</h3>
               <ul className="mt-3 space-y-3">
                 {rootGroups.map((g) => {
                   const f = intel?.normalizedFindings.find(

@@ -47,6 +47,7 @@ export type DeveloperTicket = {
     additionalPageCount: number;
     selectorsShown: number;
     totalSelectorsAvailable: number;
+    retainedEvidenceCount?: number;
   };
   representativeEvidence: DeveloperTicketEvidence[];
   recommendedFix: string[];
@@ -80,6 +81,7 @@ export type BuildDeveloperTicketInput = {
     likelySharedComponent: boolean;
     affectedPages: string[];
     totalOccurrences: number;
+    retainedEvidenceCount?: number;
     representativeSelectors: string[];
     representativeEvidence: {
       selector?: string;

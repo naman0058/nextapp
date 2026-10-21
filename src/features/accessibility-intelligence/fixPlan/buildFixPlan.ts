@@ -1,6 +1,7 @@
 import type { FixPlanItem } from "@/features/accessibility-intelligence/types/siteIntelligence";
 import type { RootCauseGroup } from "@/features/accessibility-intelligence/types/siteIntelligence";
 import { remediationGroupKey } from "@/features/accessibility-intelligence/grouping/groupRootCauses";
+import { formatRetainedEvidenceNote } from "@/features/website-scanner/utils/occurrenceCounts";
 import { computeRemediationPriority } from "@/features/accessibility-intelligence/priority/remediationPriority";
 import { getVerificationStepsForRule } from "@/features/accessibility-intelligence/knowledge/ruleKnowledge";
 import type { SiteRuleAggregate } from "@/features/website-scanner/types/scanTypes";
@@ -32,9 +33,16 @@ export function buildFixPlan(
       affectedElements: group.remediationReach.occurrences,
       likelySharedFix: group.likelySharedComponent,
       reasonForPriority,
-      estimatedReachLabel: group.likelySharedComponent
-        ? `Fix once may improve ${group.remediationReach.occurrences} occurrences across ${group.remediationReach.pages} pages`
-        : `${group.remediationReach.occurrences} occurrence(s) on ${group.remediationReach.pages} page(s)`,
+      estimatedReachLabel: (() => {
+        const base = group.likelySharedComponent
+          ? `Fix once may improve ${group.remediationReach.occurrences} affected occurrences across ${group.remediationReach.pages} pages`
+          : `${group.remediationReach.occurrences} affected occurrence(s) on ${group.remediationReach.pages} page(s)`;
+        const retainedNote = formatRetainedEvidenceNote(
+          group.retainedEvidenceCount,
+          group.totalOccurrences,
+        );
+        return retainedNote ? `${base} · ${retainedNote}` : base;
+      })(),
       verificationSteps: getVerificationStepsForRule(group.ruleId),
       ruleId: group.ruleId,
     });

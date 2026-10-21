@@ -3,6 +3,11 @@
 import { useMemo, useState } from "react";
 import { useWebsiteScanSession } from "@/features/website-scanner/context/WebsiteScanProvider";
 import { collectPageScanResults } from "@/features/website-scanner/utils/collectPageScanResults";
+import {
+  buildPageScanDiagnostic,
+  formatEvidenceReportingLabel,
+  formatPageExecutionLabel,
+} from "@/features/website-scanner/utils/pageScanDiagnostics";
 
 type SortKey = "url" | "issues" | "serious";
 
@@ -26,11 +31,15 @@ export function PageInventoryPanel() {
           }
         }
         const unique = ruleIds.size;
+        const diagnostic = primary ? buildPageScanDiagnostic(primary) : null;
+        const completeness = diagnostic
+          ? `Execution: ${formatPageExecutionLabel(diagnostic.pageExecution)} · Evidence: ${formatEvidenceReportingLabel(diagnostic.evidenceReporting)}`
+          : "—";
         return {
           url: primary?.finalUrl ?? p.url,
           title: primary?.pageTitle ?? "—",
           viewport: p.desktopResult && p.mobileResult ? "Both" : primary?.viewport.label ?? "—",
-          completeness: primary?.scanCompleteness ?? "complete",
+          completeness,
           uniqueIssues: unique,
           serious,
         };

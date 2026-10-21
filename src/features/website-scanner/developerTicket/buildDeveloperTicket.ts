@@ -142,7 +142,7 @@ export function buildDeveloperTicket(input: BuildDeveloperTicketInput): Develope
   const pages = collectPagePaths(input);
   const evidence = collectEvidence(input);
   const selectorCount = rc?.representativeSelectors.length ?? evidence.filter((e) => e.selector).length;
-  const totalSelectors = Math.max(selectorCount, rc?.totalOccurrences ?? 0);
+  const totalSelectors = rc?.totalOccurrences ?? selectorCount;
 
   let standardClassification: DeveloperTicket["standardClassification"] = "wcag";
   if (input.bestPractice) standardClassification = "best_practice";
@@ -155,9 +155,17 @@ export function buildDeveloperTicket(input: BuildDeveloperTicketInput): Develope
     limitations.unshift(input.scanContext.scanCompletenessNote);
   }
   if (rc && rc.totalOccurrences > evidence.length) {
-    limitations.push(
-      `${rc.totalOccurrences} total affected elements; ${Math.min(MAX_TICKET_SELECTORS, evidence.length)} representative selector(s) shown.`,
-    );
+    const retained = rc.retainedEvidenceCount ?? evidence.length;
+    const selectorShown = Math.min(MAX_TICKET_SELECTORS, evidence.length);
+    if (retained < rc.totalOccurrences) {
+      limitations.push(
+        `${rc.totalOccurrences} total affected occurrence(s); detailed evidence retained for ${retained}; ${selectorShown} representative selector(s) shown.`,
+      );
+    } else {
+      limitations.push(
+        `${rc.totalOccurrences} total affected elements; ${selectorShown} representative selector(s) shown.`,
+      );
+    }
   }
 
   const recommendedFix: string[] = [];
@@ -210,6 +218,7 @@ export function buildDeveloperTicket(input: BuildDeveloperTicketInput): Develope
       additionalPageCount: pages.additional,
       selectorsShown: evidence.filter((e) => e.selector).length,
       totalSelectorsAvailable: totalSelectors,
+      retainedEvidenceCount: rc?.retainedEvidenceCount,
     },
     representativeEvidence: evidence,
     recommendedFix,

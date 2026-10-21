@@ -3,6 +3,11 @@ import { sanitizeSpreadsheetCell } from "@/features/website-scanner/utils/export
 import { sanitizeExportUrl } from "@/features/website-scanner/utils/export/sanitizeExportUrl";
 import { collectPageScanResults } from "@/features/website-scanner/utils/collectPageScanResults";
 import {
+  buildPageScanDiagnostic,
+  formatEvidenceReportingLabel,
+  formatPageExecutionLabel,
+} from "@/features/website-scanner/utils/pageScanDiagnostics";
+import {
   AI_REMEDIATION_EXCEL_HEADERS,
   formatAiRemediationForExcelRow,
 } from "@/lib/ai/remediation/report";
@@ -49,7 +54,12 @@ export async function exportWebsiteWorkbook(
       ),
       sanitizeSpreadsheetCell(primary?.pageTitle ?? ""),
       p.desktopResult && p.mobileResult ? "Both" : (primary?.viewport.label ?? ""),
-      primary?.scanCompleteness ?? "complete",
+      primary
+        ? (() => {
+            const d = buildPageScanDiagnostic(primary);
+            return `Execution: ${formatPageExecutionLabel(d.pageExecution)} · Evidence: ${formatEvidenceReportingLabel(d.evidenceReporting)}`;
+          })()
+        : "—",
       issues,
     ]);
   }

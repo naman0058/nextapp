@@ -2,6 +2,13 @@ import type { WebsiteScanSessionState } from "@/features/website-scanner/types/w
 import type { WebsitePageScanResult } from "@/features/website-scanner/types/scanTypes";
 import type { DeveloperTicketScanContext } from "@/features/website-scanner/developerTicket/types";
 import { SCAN_VIEWPORTS } from "@/features/website-scanner/constants/viewports";
+import {
+  aggregateEvidenceReporting,
+  aggregatePageExecution,
+  buildSiteScanDiagnostics,
+  formatEvidenceReportingLabel,
+  formatPageExecutionLabel,
+} from "@/features/website-scanner/utils/pageScanDiagnostics";
 
 export function buildDeveloperTicketScanContext(
   session: Pick<
@@ -21,26 +28,50 @@ export function buildDeveloperTicketScanContext(
     viewportLabel = completedPages[0].viewport.label;
   }
 
-  let scanCompletenessNote: string | undefined;
+  const noteParts: string[] = [];
   if (
     session.status === "partial" ||
     session.scanScope.pagesPartial > 0 ||
     session.scanScope.pagesFailed > 0
   ) {
-    scanCompletenessNote =
-      "Scan limitation: Some content may not have been fully evaluated.";
+    if (session.scanScope.pagesFailed > 0) {
+      noteParts.push(
+        `Scan scope: ${session.scanScope.pagesFailed} page(s) failed to scan.`,
+      );
+    }
+    if (session.scanScope.pagesPartial > 0) {
+      noteParts.push(
+        `Scan scope: ${session.scanScope.pagesPartial} page(s) completed with partial execution.`,
+      );
+    }
+    if (noteParts.length === 0) {
+      noteParts.push("Scan scope: Not all selected pages completed.");
+    }
   }
-  const anyLimited = completedPages.some(
-    (p) =>
-      p.scanCompleteness === "partial" ||
-      p.scanCompleteness === "limited" ||
-      p.scanQuality?.domTruncated ||
-      p.scanQuality?.nodeEvidenceTruncated,
-  );
-  if (anyLimited && !scanCompletenessNote) {
-    scanCompletenessNote =
-      "Scan limitation: One or more pages had partial or limited evaluation.";
+
+  const pageExecution = aggregatePageExecution(completedPages);
+  const evidenceReporting = aggregateEvidenceReporting(completedPages);
+  const diagnostics = buildSiteScanDiagnostics(completedPages);
+  const executionReasons = diagnostics.flatMap((d) => d.executionReasons);
+  const evidenceReasons = diagnostics.flatMap((d) => d.evidenceReasons);
+
+  if (pageExecution !== "complete") {
+    noteParts.push(
+      `Page execution: ${formatPageExecutionLabel(pageExecution)}${
+        executionReasons.length ? ` — ${executionReasons.join("; ")}` : ""
+      }.`,
+    );
   }
+  if (evidenceReporting === "limited") {
+    noteParts.push(
+      `Evidence reporting: ${formatEvidenceReportingLabel(evidenceReporting)}${
+        evidenceReasons.length ? ` — ${evidenceReasons.join("; ")}` : ""
+      }.`,
+    );
+  }
+
+  const scanCompletenessNote =
+    noteParts.length > 0 ? noteParts.join(" ") : undefined;
 
   let origin: string | undefined;
   try {

@@ -14,6 +14,11 @@ import { ImpactBadge } from "@/features/website-scanner/components/results/Impac
 import { PriorityBadge } from "@/features/website-scanner/components/results/PriorityBadge";
 import { FixLabPanel } from "@/features/website-scanner/components/results/FixLabPanel";
 import { ViewOnPageButton } from "@/features/website-scanner/components/visualLocator/ViewOnPageButton";
+import {
+  formatAffectedOccurrencesSummary,
+  formatRetainedEvidenceNote,
+  viewOccurrencesButtonLabel,
+} from "@/features/website-scanner/utils/occurrenceCounts";
 
 const MAX_VISIBLE = 3;
 
@@ -57,6 +62,10 @@ export function IssueCard({
   const totalOcc =
     rootCauseGroup?.totalOccurrences ??
     findings.reduce((n, f) => n + (f.occurrenceCount ?? 1), 0);
+  const retainedOcc = rootCauseGroup?.retainedEvidenceCount ?? evidence.length;
+  const pageCount =
+    rootCauseGroup?.affectedPages.length ??
+    new Set(findings.map((f) => f.pageUrl).filter(Boolean)).size;
   const axeHelp = sample?.title ?? title;
 
   return (
@@ -125,10 +134,14 @@ export function IssueCard({
         </p>
       )}
       <p className="mt-2 text-muted">
-        {totalOcc} affected occurrence(s)
-        {(evidence.length < totalOcc || selectorExamples.length < totalOcc) &&
-          ` · showing ${Math.max(visible.length, visibleSelectors.length)} example(s)`}
+        {formatAffectedOccurrencesSummary(totalOcc, pageCount || 1)}
       </p>
+      {formatRetainedEvidenceNote(retainedOcc, totalOcc) && (
+        <p className="text-xs text-muted">
+          {formatRetainedEvidenceNote(retainedOcc, totalOcc)} · showing{" "}
+          {Math.min(MAX_VISIBLE, visibleSelectors.length)} selector example(s)
+        </p>
+      )}
       {visibleSelectors.length > 0 && (
         <ul className="mt-2 list-inside list-disc text-xs text-muted">
           {visibleSelectors.map((sel) => (
@@ -146,7 +159,7 @@ export function IssueCard({
           className="mt-1 text-xs font-medium text-primary underline"
           onClick={() => setShowMore(true)}
         >
-          View all occurrences ({totalOcc})
+          {viewOccurrencesButtonLabel(retainedOcc, totalOcc)}
         </button>
       )}
       {!sampleMode && findings[0]?.pageUrl && (

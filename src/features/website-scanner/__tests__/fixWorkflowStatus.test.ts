@@ -94,6 +94,7 @@ describe("resolveDisplayFixStatus", () => {
       label: "Images",
       affectedPages: ["https://a.test/"],
       totalOccurrences: 0,
+      retainedEvidenceCount: 0,
       representativeSelectors: [],
       representativeEvidence: [],
       likelySharedComponent: false,

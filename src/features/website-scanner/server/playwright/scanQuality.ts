@@ -12,11 +12,7 @@ export function deriveScanCompleteness(input: {
   scanTimeout: boolean;
 }): ScanCompletenessLevel {
   if (input.scanTimeout || input.domTooLarge) return "failed";
-  if (
-    input.networkBudgetExceeded ||
-    input.nodeEvidenceTruncated ||
-    input.warnings.some((w) => w.includes("incomplete"))
-  ) {
+  if (input.networkBudgetExceeded) {
     return "partial";
   }
   if (input.warnings.length > 0) return "limited";

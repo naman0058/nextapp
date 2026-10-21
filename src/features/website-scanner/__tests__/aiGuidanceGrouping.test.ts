@@ -11,6 +11,7 @@ const group: RootCauseGroup = {
   label: "Missing alt",
   affectedPages: ["https://example.com/"],
   totalOccurrences: 5,
+  retainedEvidenceCount: 5,
   representativeSelectors: ["img"],
   representativeEvidence: [
     { sourceType: "axe", confidenceCategory: "tool_detected", htmlSnippet: "<img src=x>" },

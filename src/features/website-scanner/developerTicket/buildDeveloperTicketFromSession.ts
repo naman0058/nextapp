@@ -115,6 +115,7 @@ export function buildDeveloperTicketForRootCause(input: {
       likelySharedComponent: group.likelySharedComponent,
       affectedPages: group.affectedPages,
       totalOccurrences: group.totalOccurrences,
+      retainedEvidenceCount: group.retainedEvidenceCount,
       representativeSelectors: group.representativeSelectors,
       representativeEvidence: group.representativeEvidence.map((e, i) => ({
         selector: e.selector,

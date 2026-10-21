@@ -38,6 +38,11 @@ export function IssuesTab({ intel, completedPages, sampleMode }: Props) {
     [completedPages],
   );
 
+  const sharedRootCauseCount =
+    intel?.summary.sharedRootCauses ?? intel?.summary.likelyRootCauses ?? 0;
+  const rootCauseGroupByLabel =
+    sharedRootCauseCount > 0 ? "Root cause" : "Remediation group";
+
   function wcagRowForRule(ruleId: string) {
     const row = intel?.wcagCoverage.find((c) =>
       c.automatedRules.includes(ruleId),
@@ -59,7 +64,7 @@ export function IssuesTab({ intel, completedPages, sampleMode }: Props) {
           <div className="mt-1 flex flex-wrap gap-2">
             {(
               [
-                ["root-cause", "Root cause"],
+                ["root-cause", rootCauseGroupByLabel],
                 ["rule", "Rule"],
                 ["page", "Page"],
               ] as const

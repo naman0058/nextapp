@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { registerSiteBatch } from "@/features/website-scanner/server/batch/siteBatchRegistry";
+import { createSiteBatchTicket } from "@/features/website-scanner/server/batch/siteBatchTicket";
 import { validateScanTargetUrl } from "@/features/website-scanner/server/security/validateScanTarget";
 import { WEBSITE_REGISTER_BATCH_RATE_COST } from "@/features/website-scanner/server/websiteScanRateLimitCost";
 import { getWebsiteScannerAvailability } from "@/features/website-scanner/server/config/websiteScannerAvailability";
@@ -64,7 +65,8 @@ export async function POST(request: Request) {
     if (!reg.ok) {
       return noStoreJson({ code: "BATCH_INVALID", error: reg.error }, 400);
     }
-    return noStoreJson({ ok: true }, 200);
+    const batchTicket = createSiteBatchTicket(reg.batch);
+    return noStoreJson({ ok: true, batchTicket }, 200);
   } catch {
     return noStoreJson({ error: "Invalid origin URL." }, 400);
   }

@@ -3,6 +3,7 @@ import {
   MAX_SITE_SCAN_PAGES,
   SITE_BATCH_REGISTRY_TTL_MS,
 } from "@/features/website-scanner/constants/scanLimits";
+import { validateSiteBatchTicket } from "@/features/website-scanner/server/batch/siteBatchTicket";
 import { safeCrawlKey } from "@/features/website-scanner/utils/crawl/safeCrawlKey";
 
 export type RegisteredSiteBatch = {
@@ -29,7 +30,7 @@ export function registerSiteBatch(input: {
   origin: string;
   urls: string[];
   viewportMode: "desktop" | "mobile" | "compare";
-}): { ok: true } | { ok: false; error: string } {
+}): { ok: true; batch: RegisteredSiteBatch } | { ok: false; error: string } {
   prune();
   const unique = [...new Set(input.urls.map((u) => u.trim()).filter(Boolean))];
   if (unique.length === 0) {
@@ -50,7 +51,7 @@ export function registerSiteBatch(input: {
       error: `Desktop + Mobile comparison supports up to ${MAX_DUAL_VIEWPORT_PAGES} pages.`,
     };
   }
-  batches.set(input.batchId, {
+  const batch: RegisteredSiteBatch = {
     batchId: input.batchId,
     origin: input.origin,
     urls: unique,
@@ -58,8 +59,9 @@ export function registerSiteBatch(input: {
     pageTotal: unique.length,
     viewportMode: input.viewportMode,
     expiresAt: Date.now() + SITE_BATCH_REGISTRY_TTL_MS,
-  });
-  return { ok: true };
+  };
+  batches.set(input.batchId, batch);
+  return { ok: true, batch };
 }
 
 export function validateBatchPageRequest(input: {
@@ -68,7 +70,18 @@ export function validateBatchPageRequest(input: {
   pageIndex: number;
   pageTotal: number;
   viewportMode: "desktop" | "mobile" | "compare";
+  batchTicket?: string | null;
 }): { ok: true } | { ok: false; error: string } {
+  if (input.batchTicket?.trim()) {
+    return validateSiteBatchTicket({
+      batchId: input.batchId,
+      url: input.url,
+      pageIndex: input.pageIndex,
+      pageTotal: input.pageTotal,
+      viewportMode: input.viewportMode,
+      batchTicket: input.batchTicket,
+    });
+  }
   prune();
   const batch = batches.get(input.batchId);
   if (!batch) {

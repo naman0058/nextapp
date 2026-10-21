@@ -22,6 +22,7 @@ export type ParsedScanPageRequest = {
     pageIndex: number;
     pageTotal: number;
     viewportMode: ViewportScanMode;
+    batchTicket: string | null;
   } | null;
 };
 
@@ -76,6 +77,10 @@ export function parseScanPageRequestBody(
       b.viewportMode === "compare" || b.viewportMode === "mobile"
         ? b.viewportMode
         : "desktop";
+    const batchTicket =
+      typeof b.batchTicket === "string" && b.batchTicket.trim()
+        ? b.batchTicket.trim()
+        : null;
     if (!batchId || pageTotal <= 0) {
       return { error: "Invalid batch metadata.", status: 400 };
     }
@@ -97,11 +102,12 @@ export function parseScanPageRequestBody(
       pageIndex,
       pageTotal,
       viewportMode,
+      batchTicket,
     });
     if (!v.ok) {
       return { error: v.error, status: 403 };
     }
-    siteBatch = { batchId, pageIndex, pageTotal, viewportMode };
+    siteBatch = { batchId, pageIndex, pageTotal, viewportMode, batchTicket };
   }
 
   const applyPolitenessDelay =

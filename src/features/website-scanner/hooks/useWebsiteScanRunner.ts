@@ -32,6 +32,7 @@ async function scanOnePage(
       pageIndex: number;
       pageTotal: number;
       viewportMode: ViewportScanMode;
+      batchTicket: string;
     };
   },
 ) {
@@ -83,7 +84,7 @@ export function useWebsiteScanRunner(dispatch: Dispatch) {
         );
       }
       const batchId = params.batchId ?? crypto.randomUUID();
-      await registerBatch(
+      const batchTicket = await registerBatch(
         batchId,
         params.rootUrl,
         selected,
@@ -144,6 +145,7 @@ export function useWebsiteScanRunner(dispatch: Dispatch) {
               pageIndex: i,
               pageTotal: selected.length,
               viewportMode: params.viewportMode,
+              batchTicket,
             },
           });
           if (ac.signal.aborted || stoppingRef.current) break;
@@ -231,16 +233,20 @@ async function registerBatch(
   originUrl: string,
   urls: string[],
   viewportMode: ViewportScanMode,
-) {
+): Promise<string> {
   const res = await fetch("/api/accessibility/website/register-batch", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ batchId, originUrl, urls, viewportMode }),
   });
+  const body = (await res.json()) as { error?: string; batchTicket?: string };
   if (!res.ok) {
-    const body = await res.json();
     throw new Error(body.error ?? "Could not register scan batch.");
   }
+  if (!body.batchTicket?.trim()) {
+    throw new Error("Could not register scan batch.");
+  }
+  return body.batchTicket.trim();
 }
 
 function sleep(ms: number) {

@@ -16,10 +16,9 @@ import { assertScannerProductionConfig } from "@/features/website-scanner/server
 import { getWebsiteScannerAvailability } from "@/features/website-scanner/server/config/websiteScannerAvailability";
 import { websiteScanPageRequestCost } from "@/features/website-scanner/server/websiteScanRateLimitCost";
 import { checkWebsiteScanRateLimit } from "@/lib/rateLimit/checkWebsiteScanRateLimit";
-import { SCAN_PAGE_REMOTE_FETCH_TIMEOUT_MS } from "@/features/website-scanner/constants/scanLimits";
 
-/** Allow remote Playwright + axe to finish on serverless (ms). */
-export const maxDuration = Math.ceil(SCAN_PAGE_REMOTE_FETCH_TIMEOUT_MS / 1000) + 15;
+/** Serverless limit (seconds). Must be a literal for Next segment config; keep ≥ remote fetch timeout (75s) + margin. */
+export const maxDuration = 90;
 
 function noStoreJson(body: unknown, status: number) {
   return NextResponse.json(body, {

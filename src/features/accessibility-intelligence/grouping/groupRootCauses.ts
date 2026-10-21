@@ -28,6 +28,59 @@ function groupConfidence(
   return "low";
 }
 
+function isDistinctSharedCluster(list: Occurrence[]): boolean {
+  const pageSet = new Set(list.map((o) => o.pageUrl));
+  const occCount = list.length;
+  if (pageSet.size >= 2 && occCount >= 2) return true;
+  if (occCount >= 5) return true;
+  return false;
+}
+
+function buildGroupFromOccurrences(
+  list: Occurrence[],
+  id: string,
+  groupTypeOverride?: RootCauseGroup["groupType"],
+): RootCauseGroup {
+  const first = list[0]!;
+  const pageSet = new Set(list.map((o) => o.pageUrl));
+  const pagesCount = pageSet.size;
+  const occCount = list.length;
+  const confidence = groupConfidence(
+    pagesCount,
+    occCount,
+    list.every((o) => o.domSignature === first.domSignature),
+  );
+  const groupType =
+    groupTypeOverride ??
+    (pagesCount === 1 && occCount === 1
+      ? "isolated"
+      : inferGroupType(first.landmark, first.tag, first.role));
+  const likelyShared =
+    groupType !== "rule_consolidated" &&
+    confidence !== "low" &&
+    pagesCount >= 2 &&
+    groupType !== "isolated";
+
+  const uniqueSelectors = [...new Set(list.map((o) => o.selector))];
+
+  return {
+    id,
+    ruleId: first.ruleId,
+    confidence,
+    groupType,
+    label: buildGroupLabel(first.ruleId, groupType, first.help),
+    affectedPages: [...pageSet],
+    totalOccurrences: occCount,
+    representativeSelectors: uniqueSelectors.slice(0, 50),
+    representativeEvidence: list.slice(0, 5).map((o) => o.evidence),
+    likelySharedComponent: likelyShared,
+    remediationReach: {
+      pages: pagesCount,
+      occurrences: occCount,
+    },
+  };
+}
+
 export function groupRootCauses(
   pages: WebsitePageScanResult[],
 ): RootCauseGroup[] {
@@ -80,54 +133,46 @@ export function groupRootCauses(
     }
   }
 
-  const buckets = new Map<string, Occurrence[]>();
+  const microBuckets = new Map<string, Occurrence[]>();
   for (const occ of occurrences) {
     const key = `${occ.ruleId}::${occ.domSignature}`;
-    const list = buckets.get(key) ?? [];
+    const list = microBuckets.get(key) ?? [];
     list.push(occ);
-    buckets.set(key, list);
+    microBuckets.set(key, list);
   }
 
-  const groups: RootCauseGroup[] = [];
+  const sharedGroups: RootCauseGroup[] = [];
+  const orphanByRule = new Map<string, Occurrence[]>();
   let idx = 0;
-  for (const [, list] of buckets) {
-    const first = list[0]!;
-    const pageSet = new Set(list.map((o) => o.pageUrl));
-    const pagesCount = pageSet.size;
-    const occCount = list.length;
-    const confidence = groupConfidence(
-      pagesCount,
-      occCount,
-      list.every((o) => o.domSignature === first.domSignature),
-    );
-    const groupType =
-      pagesCount === 1 && occCount === 1
-        ? "isolated"
-        : inferGroupType(first.landmark, first.tag, first.role);
-    const likelyShared =
-      confidence !== "low" && pagesCount >= 2 && groupType !== "isolated";
 
-    groups.push({
-      id: `rcg-${idx++}`,
-      ruleId: first.ruleId,
-      confidence,
-      groupType,
-      label: buildGroupLabel(first.ruleId, groupType, first.help),
-      affectedPages: [...pageSet],
-      totalOccurrences: occCount,
-      representativeSelectors: [
-        ...new Set(list.map((o) => o.selector).slice(0, 5)),
-      ],
-      representativeEvidence: list.slice(0, 3).map((o) => o.evidence),
-      likelySharedComponent: likelyShared,
-      remediationReach: {
-        pages: pagesCount,
-        occurrences: occCount,
-      },
-    });
+  for (const list of microBuckets.values()) {
+    if (isDistinctSharedCluster(list)) {
+      sharedGroups.push(
+        buildGroupFromOccurrences(list, `rcg-${idx++}`),
+      );
+      continue;
+    }
+    const ruleId = list[0]!.ruleId;
+    const orphans = orphanByRule.get(ruleId) ?? [];
+    orphans.push(...list);
+    orphanByRule.set(ruleId, orphans);
   }
 
-  return groups.sort(
+  const consolidatedGroups: RootCauseGroup[] = [];
+  for (const [, list] of orphanByRule) {
+    if (list.length === 0) continue;
+    if (list.length === 1) {
+      consolidatedGroups.push(
+        buildGroupFromOccurrences(list, `rcg-${idx++}`, "isolated"),
+      );
+      continue;
+    }
+    consolidatedGroups.push(
+      buildGroupFromOccurrences(list, `rcg-${idx++}`, "rule_consolidated"),
+    );
+  }
+
+  return [...sharedGroups, ...consolidatedGroups].sort(
     (a, b) => b.totalOccurrences - a.totalOccurrences,
   );
 }
@@ -143,4 +188,9 @@ export function attachRootCauseIdsToViolations(
     }
   }
   return nodeToGroup;
+}
+
+/** Stable remediation group key for fix-plan deduplication. */
+export function remediationGroupKey(group: RootCauseGroup): string {
+  return `${group.ruleId}::${group.groupType}::${group.likelySharedComponent ? "shared" : "local"}::${group.representativeSelectors[0] ?? group.id}`;
 }

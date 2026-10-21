@@ -36,8 +36,10 @@ export function validateSampleReportConsistency(
   }
 
   const likelyShared = intel.rootCauseGroups.filter((g) => g.likelySharedComponent).length;
-  if (intel.summary.likelyRootCauses !== likelyShared) {
-    errors.push("summary.likelyRootCauses does not match likely shared root cause count");
+  const sharedCount =
+    intel.summary.sharedRootCauses ?? intel.summary.likelyRootCauses;
+  if (sharedCount !== likelyShared) {
+    errors.push("summary.sharedRootCauses does not match likely shared root cause count");
   }
 
   const aggregateOccurrences = intel.ruleAggregates.reduce((n, r) => n + r.totalNodeCount, 0);

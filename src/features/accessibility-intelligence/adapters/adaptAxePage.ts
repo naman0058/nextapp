@@ -81,17 +81,23 @@ function adaptViolation(
 function adaptIncomplete(
   inc: WebsiteAccessibilityIncomplete,
   page: WebsitePageScanResult,
+  automatedViolationForSameRule: boolean,
 ): NormalizedAccessibilityFinding {
+  const manualTitle = automatedViolationForSameRule
+    ? `Needs manual confirmation: ${inc.help}`
+    : inc.help;
   return {
     id: `${page.finalUrl}::${page.viewport.id}::${inc.id}::incomplete`,
     sourceType: "axe",
     category: "website_automation",
-    title: inc.help,
+    title: manualTitle,
     status: "review",
     impact: inc.impact,
     priority: "medium",
     confidence: "human_required",
-    description: inc.description,
+    description: automatedViolationForSameRule
+      ? `Axe could not fully automate this check on this page; manual verification is required. ${inc.description}`
+      : inc.description,
     userImpact: getUserImpactForRule(inc.id, inc.help),
     wcagCriteria: inc.wcagCriteria,
     wcagLevel: inc.level === "A" || inc.level === "AA" ? inc.level : null,
@@ -109,13 +115,18 @@ export function adaptAxePageToFindings(
   rootCauseByRule?: Map<string, string>,
 ): NormalizedAccessibilityFinding[] {
   const findings: NormalizedAccessibilityFinding[] = [];
+  const violationRuleIds = new Set(
+    page.violations.filter((v) => !v.isBestPractice).map((v) => v.id),
+  );
   for (const v of page.violations) {
     findings.push(
       adaptViolation(v, page, rootCauseByRule?.get(v.id)),
     );
   }
   for (const inc of page.incomplete) {
-    findings.push(adaptIncomplete(inc, page));
+    findings.push(
+      adaptIncomplete(inc, page, violationRuleIds.has(inc.id)),
+    );
   }
   return findings;
 }

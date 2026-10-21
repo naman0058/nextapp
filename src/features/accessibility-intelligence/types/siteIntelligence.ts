@@ -29,6 +29,7 @@ export type RootCauseGroupType =
   | "shared_image_component"
   | "shared_template"
   | "repeated_pattern"
+  | "rule_consolidated"
   | "isolated"
   | "unknown";
 
@@ -74,7 +75,9 @@ export type SiteLevelSummary = {
   partialPages: number;
   pagesWithViolations: number;
   uniqueAutomatedRules: number;
+  /** @deprecated display as shared root causes — same as sharedRootCauses */
   likelyRootCauses: number;
+  sharedRootCauses: number;
   totalOccurrences: number;
   humanReviewItems: number;
   bestPracticeFindings: number;

@@ -51,14 +51,22 @@ function buildFindings(
         technicalId: v.id,
       });
     }
+    const automatedRuleIds = new Set(
+      page.violations.filter((v) => !v.isBestPractice).map((v) => v.id),
+    );
     for (const inc of page.incomplete) {
+      const overlapsAutomated = automatedRuleIds.has(inc.id);
       findings.push({
         id: `${page.finalUrl}-${inc.id}-incomplete`,
-        section: "Human review",
-        title: inc.help,
+        section: overlapsAutomated ? "Needs manual confirmation" : "Human review",
+        title: overlapsAutomated
+          ? `Needs manual confirmation: ${inc.help}`
+          : inc.help,
         status: "review",
         sourceType: "manual_review",
-        finding: inc.description,
+        finding: overlapsAutomated
+          ? `Axe could not fully automate this check; manual verification required. ${inc.description}`
+          : inc.description,
         technicalId: inc.id,
       });
     }
@@ -136,7 +144,7 @@ function buildExecutiveSummary(session: WebsiteScanSessionState): string[] {
         .join("; ") || "None"}`,
     );
     lines.push(
-      `Likely root causes: ${intel.summary.likelyRootCauses}; unique automated rules: ${intel.summary.uniqueAutomatedRules}.`,
+      `Shared root causes: ${intel.summary.sharedRootCauses ?? intel.summary.likelyRootCauses}; unique automated rules: ${intel.summary.uniqueAutomatedRules}.`,
     );
     const auto = intel.wcagCoverage.filter((c) => c.automation === "automated").length;
     const manual = intel.wcagCoverage.filter((c) => c.automation === "manual").length;

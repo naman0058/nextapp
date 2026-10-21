@@ -21,4 +21,16 @@ describe("getStartHereItems", () => {
     const top = getStartHereItems(plan);
     expect(top.map((t) => t.rank)).toEqual([1, 2, 3, 4, 5]);
   });
+
+  it("dedupes items that share the same remediation group", () => {
+    const dup: FixPlanItem = {
+      ...item(1),
+      rootCauseGroupId: "rcg-same",
+      ruleId: "color-contrast",
+      title: "Same rule",
+    };
+    const plan = [dup, { ...dup, rank: 2 }, item(3)];
+    const top = getStartHereItems(plan, 5);
+    expect(top).toHaveLength(2);
+  });
 });

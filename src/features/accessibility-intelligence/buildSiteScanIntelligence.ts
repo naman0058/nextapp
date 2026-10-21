@@ -16,9 +16,22 @@ export function buildSiteScanIntelligence(
   const ruleAggregates = aggregateSiteIssues(pages);
   const groupByRule = new Map<string, string>();
   for (const g of rootCauseGroups) {
-    if (!groupByRule.has(g.ruleId) && g.likelySharedComponent) {
+    const existingId = groupByRule.get(g.ruleId);
+    if (!existingId) {
       groupByRule.set(g.ruleId, g.id);
+      continue;
     }
+    const existing = rootCauseGroups.find((x) => x.id === existingId);
+    if (!existing) {
+      groupByRule.set(g.ruleId, g.id);
+      continue;
+    }
+    const prefer =
+      (g.likelySharedComponent && !existing.likelySharedComponent) ||
+      (g.groupType === "rule_consolidated" &&
+        existing.groupType !== "rule_consolidated") ||
+      g.totalOccurrences > existing.totalOccurrences;
+    if (prefer) groupByRule.set(g.ruleId, g.id);
   }
 
   const normalizedFindings = pages.flatMap((p) =>
@@ -27,9 +40,10 @@ export function buildSiteScanIntelligence(
 
   for (const finding of normalizedFindings) {
     if (finding.status !== "issue") continue;
-    const group = rootCauseGroups.find(
-      (g) => g.ruleId === finding.ruleId && g.likelySharedComponent,
-    );
+    const groupId = groupByRule.get(finding.ruleId ?? "");
+    const group = groupId
+      ? rootCauseGroups.find((g) => g.id === groupId)
+      : undefined;
     const agg = ruleAggregates.find((r) => r.ruleId === finding.ruleId);
     const { priority } = computeRemediationPriority({
       impact: finding.impact,
@@ -41,7 +55,7 @@ export function buildSiteScanIntelligence(
       humanReviewRequired: finding.humanReviewRequired,
     });
     finding.priority = priority;
-    if (group) finding.rootCauseGroupId = group.id;
+    if (groupId) finding.rootCauseGroupId = groupId;
   }
 
   const pagesWithViolations = pages.filter((p) =>
@@ -65,6 +79,8 @@ export function buildSiteScanIntelligence(
       uniqueAutomatedRules: ruleAggregates.filter((r) => !r.isBestPractice)
         .length,
       likelyRootCauses: rootCauseGroups.filter((g) => g.likelySharedComponent)
+        .length,
+      sharedRootCauses: rootCauseGroups.filter((g) => g.likelySharedComponent)
         .length,
       totalOccurrences: ruleAggregates.reduce(
         (n, r) => n + r.totalNodeCount,

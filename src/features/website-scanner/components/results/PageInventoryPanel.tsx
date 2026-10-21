@@ -16,15 +16,16 @@ export function PageInventoryPanel() {
       .map((p) => {
         const results = collectPageScanResults([p]);
         const primary = p.desktopResult ?? p.mobileResult ?? p.result;
-        let unique = 0;
+        const ruleIds = new Set<string>();
         let serious = 0;
         for (const r of results) {
           for (const v of r.violations) {
             if (v.isBestPractice) continue;
-            unique += 1;
+            ruleIds.add(v.id);
             if (v.impact === "critical" || v.impact === "serious") serious += 1;
           }
         }
+        const unique = ruleIds.size;
         return {
           url: primary?.finalUrl ?? p.url,
           title: primary?.pageTitle ?? "—",
@@ -63,7 +64,7 @@ export function PageInventoryPanel() {
               <th className="p-2">Title</th>
               <th className="p-2">Viewport</th>
               <th className="p-2">Completeness</th>
-              <th className="p-2">Issues</th>
+              <th className="p-2">Rules</th>
             </tr>
           </thead>
           <tbody>

@@ -140,7 +140,7 @@ function SampleReportBody({ cta, fixture }: SampleReportBodyProps) {
         {intel ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <SummaryCard label="Pages reviewed" value={state.scanScope.pagesCompleted} />
-            <SummaryCard label="Likely root causes" value={intel.summary.likelyRootCauses} />
+            <SummaryCard label="Shared root causes" value={intel.summary.sharedRootCauses ?? intel.summary.likelyRootCauses} />
             <SummaryCard label="Affected elements (approx.)" value={intel.summary.totalOccurrences} />
             <SummaryCard label="Human review signals" value={intel.summary.humanReviewItems} />
           </div>

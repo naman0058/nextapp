@@ -31,6 +31,8 @@ export function buildGroupLabel(
       return `Likely shared form pattern: ${base}`;
     case "isolated":
       return `Isolated occurrence: ${base}`;
+    case "rule_consolidated":
+      return base;
     default:
       return `Repeated pattern: ${base}`;
   }

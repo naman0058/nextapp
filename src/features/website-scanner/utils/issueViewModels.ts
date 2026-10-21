@@ -8,7 +8,18 @@ export function getStartHereItems(
   fixPlan: FixPlanItem[],
   max = 5,
 ): FixPlanItem[] {
-  return [...fixPlan].sort((a, b) => a.rank - b.rank).slice(0, max);
+  const seen = new Set<string>();
+  const out: FixPlanItem[] = [];
+  for (const item of [...fixPlan].sort((a, b) => a.rank - b.rank)) {
+    const key =
+      item.rootCauseGroupId ??
+      (item.ruleId ? `rule:${item.ruleId}` : item.title);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+    if (out.length >= max) break;
+  }
+  return out;
 }
 
 export function sortRootCauseGroups(

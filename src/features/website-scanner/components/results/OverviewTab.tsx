@@ -27,10 +27,12 @@ type Props = {
 export function OverviewTab({ intel, completedPages, totalIncomplete }: Props) {
   const { dispatch } = useWebsiteScanSession();
   const completeness = aggregateScanCompleteness(completedPages);
-  const showAlert =
+  const pageLoadIncomplete =
     completeness === "partial" ||
     completeness === "limited" ||
     completeness === "failed";
+  const axeIncompleteOnly =
+    !pageLoadIncomplete && totalIncomplete > 0;
   const startHere = intel ? getStartHereItems(intel.fixPlan) : [];
   const rootGroups = intel
     ? sortRootCauseGroups(intel.rootCauseGroups).slice(0, 5)
@@ -43,11 +45,19 @@ export function OverviewTab({ intel, completedPages, totalIncomplete }: Props) {
 
   return (
     <div className="space-y-6">
-      {showAlert && (
+      {pageLoadIncomplete && (
         <div role="alert" className="rounded-lg border border-amber-600 bg-amber-50 p-4 text-sm dark:bg-amber-950/30">
-          <strong>Scan completeness: {scanCompletenessLabel(completeness)}.</strong>{" "}
-          Some pages may have loaded partially or hit limits. Treat missing coverage
-          as unknown risk until you rescan or review manually.
+          <strong>Page scan completeness: {scanCompletenessLabel(completeness)}.</strong>{" "}
+          Some pages may have loaded partially or hit scanner limits (timeouts, DOM
+          caps, or network budgets). Treat missing coverage as unknown risk until you
+          rescan or review manually.
+        </div>
+      )}
+      {axeIncompleteOnly && (
+        <div role="status" className="rounded-lg border border-border bg-muted/30 p-4 text-sm">
+          <strong>Axe manual checks: {totalIncomplete} item(s).</strong> Pages loaded
+          for scanning, but axe could not fully automate every rule on this run. See
+          Human review and Issues marked “Needs manual confirmation”.
         </div>
       )}
 
@@ -55,10 +65,10 @@ export function OverviewTab({ intel, completedPages, totalIncomplete }: Props) {
       <ViewportComparisonPanel />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <SummaryCard label="Unique automated issues" value={uniqueIssues} />
+        <SummaryCard label="Unique automated rules" value={uniqueIssues} />
         <SummaryCard
-          label="Likely root causes"
-          value={intel?.summary.likelyRootCauses ?? 0}
+          label="Shared root causes"
+          value={intel?.summary.sharedRootCauses ?? intel?.summary.likelyRootCauses ?? 0}
         />
         <SummaryCard
           label="Total elements (occurrences)"
@@ -140,7 +150,7 @@ export function OverviewTab({ intel, completedPages, totalIncomplete }: Props) {
           <ul className="mt-2 space-y-1 text-sm">
             {hotspots.map((h) => (
               <li key={h.pageUrl}>
-                <span className="font-medium">{h.uniqueIssues}</span> unique issue(s) —{" "}
+                <span className="font-medium">{h.uniqueIssues}</span> unique rule(s) —{" "}
                 <span className="break-all text-muted">{h.pageUrl}</span>
               </li>
             ))}

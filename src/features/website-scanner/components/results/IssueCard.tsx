@@ -48,7 +48,12 @@ export function IssueCard({
   const knowledge = getRuleKnowledge(ruleId);
   const sample = findings[0];
   const evidence = rootCauseGroup?.representativeEvidence ?? sample?.evidence ?? [];
+  const selectorExamples =
+    rootCauseGroup?.representativeSelectors?.filter(Boolean) ?? [];
   const visible = showMore ? evidence : evidence.slice(0, MAX_VISIBLE);
+  const visibleSelectors = showMore
+    ? selectorExamples
+    : selectorExamples.slice(0, MAX_VISIBLE);
   const totalOcc =
     rootCauseGroup?.totalOccurrences ??
     findings.reduce((n, f) => n + (f.occurrenceCount ?? 1), 0);
@@ -120,17 +125,28 @@ export function IssueCard({
         </p>
       )}
       <p className="mt-2 text-muted">
-        {totalOcc} element(s) affected
-        {evidence.length < totalOcc &&
-          ` · showing ${visible.length} example(s)`}
+        {totalOcc} affected occurrence(s)
+        {(evidence.length < totalOcc || selectorExamples.length < totalOcc) &&
+          ` · showing ${Math.max(visible.length, visibleSelectors.length)} example(s)`}
       </p>
-      {evidence.length > MAX_VISIBLE && !showMore && (
+      {visibleSelectors.length > 0 && (
+        <ul className="mt-2 list-inside list-disc text-xs text-muted">
+          {visibleSelectors.map((sel) => (
+            <li key={sel} className="break-all">
+              {sel}
+            </li>
+          ))}
+        </ul>
+      )}
+      {(evidence.length > MAX_VISIBLE ||
+        selectorExamples.length > MAX_VISIBLE) &&
+        !showMore && (
         <button
           type="button"
           className="mt-1 text-xs font-medium text-primary underline"
           onClick={() => setShowMore(true)}
         >
-          View more examples
+          View all occurrences ({totalOcc})
         </button>
       )}
       {!sampleMode && findings[0]?.pageUrl && (

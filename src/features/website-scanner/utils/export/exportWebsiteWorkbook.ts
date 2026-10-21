@@ -27,7 +27,10 @@ export async function exportWebsiteWorkbook(
   exec.addRow(["Pages scanned", scope.pagesCompleted]);
   exec.addRow(["Viewport mode", session.viewportMode]);
   exec.addRow(["Unique issues", intel?.summary.uniqueAutomatedRules ?? ""]);
-  exec.addRow(["Root causes", intel?.summary.likelyRootCauses ?? ""]);
+  exec.addRow([
+    "Shared root causes",
+    intel?.summary.sharedRootCauses ?? intel?.summary.likelyRootCauses ?? "",
+  ]);
   exec.getRow(1).font = { bold: true };
 
   const inv = wb.addWorksheet("Page Inventory");

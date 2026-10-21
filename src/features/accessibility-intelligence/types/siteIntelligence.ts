@@ -104,10 +104,16 @@ export type FixPlanItem = {
 export type SiteScanIntelligence = {
   generatedAt: string;
   summary: SiteLevelSummary;
+  /** Canonical taxonomy, ledger, and executive counters (Phase 2). */
+  scanResultModel: import("@/features/website-scanner/taxonomy/types").ScanResultModel;
+  /** Phase 3 executive preflight (derived from scanResultModel — do not recompute in UI). */
+  executivePreflight: import("@/features/website-scanner/executive/types").SiteExecutivePreflight;
   normalizedFindings: NormalizedAccessibilityFinding[];
   rootCauseGroups: RootCauseGroup[];
   ruleAggregates: import("@/features/website-scanner/types/scanTypes").SiteRuleAggregate[];
   wcagCoverage: WcagCoverageCriterion[];
   fixPlan: FixPlanItem[];
   priorityExplanation: string;
+  /** Canonical Issues explorer view model (Phase 4). */
+  findingDetails: import("@/features/website-scanner/findingDetail/types").FindingDetail[];
 };

@@ -1,4 +1,5 @@
-import type { DeterministicFixTemplate } from "@/features/accessibility-intelligence/knowledge/ruleKnowledge";
+import type { DeterministicFixTemplate } from "@/features/accessibility-intelligence/knowledge/ruleKnowledgeTypes";
+import { getDeterministicRemediation } from "@/features/website-scanner/remediation/registry";
 
 const RULE_CRITERIA: Record<string, string[]> = {
   "button-name": [
@@ -114,6 +115,8 @@ export function acceptanceCriteriaForRule(
   template?: DeterministicFixTemplate,
   humanReviewRequired?: boolean,
 ): string[] {
+  const fromRegistry = getDeterministicRemediation(ruleId)?.developerAcceptanceCriteria;
+  if (fromRegistry?.length) return [...fromRegistry];
   const specific = RULE_CRITERIA[ruleId];
   if (specific?.length) return [...specific];
   const generic: string[] = [];

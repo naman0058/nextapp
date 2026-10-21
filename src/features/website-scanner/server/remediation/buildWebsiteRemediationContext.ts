@@ -3,10 +3,12 @@ import type {
   RootCauseGroup,
 } from "@/features/accessibility-intelligence/types/siteIntelligence";
 import type { NormalizedAccessibilityFinding } from "@/features/accessibility-intelligence/types/normalizedFinding";
+import { getUserImpactForRule } from "@/features/accessibility-intelligence/knowledge/ruleKnowledge";
 import {
-  getRuleKnowledge,
-  getUserImpactForRule,
-} from "@/features/accessibility-intelligence/knowledge/ruleKnowledge";
+  buildDeterministicGuidanceStrings,
+  getDeterministicRemediation,
+  hasFullDeterministicRemediation,
+} from "@/features/website-scanner/remediation/registry";
 import type { RemediationFacts } from "@/lib/ai/remediation/types";
 import type { WebsitePageScanResult } from "@/features/website-scanner/types/scanTypes";
 import type { ViewportScanMode } from "@/features/website-scanner/types/websiteDiscovery";
@@ -84,8 +86,7 @@ export function buildWebsiteRemediationContext(
 ): WebsiteRemediationContext {
   const { group, fixPlanItem, completedPages, viewportMode, normalizedFindings } =
     input;
-  const knowledge = getRuleKnowledge(group.ruleId);
-  const template = knowledge?.deterministicFixTemplate;
+  const remediation = getDeterministicRemediation(group.ruleId);
   const { violation } = sampleViolation(group, completedPages);
 
   const htmlSnippets = group.representativeEvidence
@@ -151,14 +152,8 @@ export function buildWebsiteRemediationContext(
   }
 
   const deterministicGuidance: string[] = [];
-  if (template) {
-    deterministicGuidance.push(`Recommended fix (deterministic): ${template.whatIsWrong}`);
-    deterministicGuidance.push(`Why it matters: ${template.whyItMatters}`);
-    deterministicGuidance.push(
-      `Possible implementation pattern (deterministic): ${template.genericPattern.slice(0, 800)}`,
-    );
-    deterministicGuidance.push(`Common mistakes to avoid: ${template.whatNotToDo}`);
-    deterministicGuidance.push(`Verification: ${template.howToVerify}`);
+  if (remediation && hasFullDeterministicRemediation(group.ruleId)) {
+    deterministicGuidance.push(...buildDeterministicGuidanceStrings(remediation));
   }
   if (group.likelySharedComponent) {
     deterministicGuidance.push(

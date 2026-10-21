@@ -3,6 +3,7 @@ import type { ReportSection } from "@/features/reports/types/reportModel";
 import { reportStatusLabel } from "@/features/reports/types/reportStatus";
 import { APPLICATION_NAME } from "@/features/reports/constants/reportVersion";
 import { AiRemediationAppendixSection } from "@/features/reports/components/AiRemediationAppendixSection";
+import { WebsiteEnterpriseReportHtml } from "@/features/reports/components/WebsiteEnterpriseReportHtml";
 
 type ReportHtmlPreviewProps = {
   report: AccessibilityPreflightReport;
@@ -54,6 +55,14 @@ export function ReportHtmlPreview({
   report,
   printRootClassName = "acps-report-print-root",
 }: ReportHtmlPreviewProps) {
+  if (report.contentType === "website_scan" && report.enterpriseView) {
+    return (
+      <div className={printRootClassName}>
+        <WebsiteEnterpriseReportHtml report={report} />
+      </div>
+    );
+  }
+
   const sections = [
     report.textAccessibility,
     report.imageAccessibility,
@@ -119,6 +128,87 @@ export function ReportHtmlPreview({
           ))}
         </ul>
       </section>
+
+      {report.humanReviewWorkspace ? (
+        <section className="mt-6">
+          <h3 className="font-display text-lg font-bold">Human review workspace</h3>
+          <p className="mt-1 text-xs text-muted">{report.humanReviewWorkspace.disclaimer}</p>
+          <p className="mt-2 text-sm">
+            Relevant checks: {report.humanReviewWorkspace.progress.relevant} · Reviewed:{" "}
+            {report.humanReviewWorkspace.progress.reviewed} · Passes:{" "}
+            {report.humanReviewWorkspace.progress.passes} · Needs review:{" "}
+            {report.humanReviewWorkspace.progress.needsReview} · Not applicable:{" "}
+            {report.humanReviewWorkspace.progress.notApplicable} · Not reviewed:{" "}
+            {report.humanReviewWorkspace.progress.notReviewed}
+          </p>
+          <ul className="mt-3 space-y-3 text-sm">
+            {report.humanReviewWorkspace.records.map((r) => (
+              <li key={r.reviewId} className="rounded-lg border border-border p-3">
+                <p className="font-semibold">{r.title}</p>
+                <p className="text-xs text-muted">
+                  Scope: {r.applicableScope.kind}
+                  {r.applicableScope.representativeLabel
+                    ? ` · ${r.applicableScope.representativeLabel}`
+                    : ""}
+                </p>
+                <p className="mt-1 capitalize">Status: {r.status.replace(/_/g, " ")}</p>
+                {r.reviewedAt ? (
+                  <p className="text-xs text-muted">Reviewed at: {r.reviewedAt}</p>
+                ) : null}
+                {r.notes ? (
+                  <p className="mt-1 whitespace-pre-wrap text-xs">{r.notes}</p>
+                ) : null}
+                {r.evidenceReferences.length > 0 ? (
+                  <ul className="mt-1 list-disc pl-5 text-xs text-muted">
+                    {r.evidenceReferences.map((e) => (
+                      <li key={e.refId}>
+                        {e.type}: {e.label}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {report.reportWorkspace?.contributionSummary ? (
+        <section className="mt-6">
+          <h3 className="font-display text-lg font-bold">Additional review evidence</h3>
+          <p className="mt-1 text-xs text-muted">
+            Optional cross-tool checks you chose to include. These do not change automated scan
+            scores or imply full-site verification.
+          </p>
+          <ul className="mt-2 list-disc pl-5 text-sm">
+            {report.reportWorkspace.contributionSummary.contrastMeasurements > 0 ? (
+              <li>
+                Contrast measurements:{" "}
+                {report.reportWorkspace.contributionSummary.contrastMeasurements}
+              </li>
+            ) : null}
+            {report.reportWorkspace.contributionSummary.developerHandoffs > 0 ? (
+              <li>
+                Developer handoffs:{" "}
+                {report.reportWorkspace.contributionSummary.developerHandoffs}
+              </li>
+            ) : null}
+            {report.reportWorkspace.contributionSummary.aiAssistedSuggestions > 0 ? (
+              <li>
+                AI-assisted suggestions:{" "}
+                {report.reportWorkspace.contributionSummary.aiAssistedSuggestions}
+              </li>
+            ) : null}
+            {report.reportWorkspace.contributionSummary.humanReviewTotal > 0 ? (
+              <li>
+                Human review completed:{" "}
+                {report.reportWorkspace.contributionSummary.humanReviewCompleted}/
+                {report.reportWorkspace.contributionSummary.humanReviewTotal}
+              </li>
+            ) : null}
+          </ul>
+        </section>
+      ) : null}
 
       {report.finalWorkingCaption ? (
         <section className="mt-6">

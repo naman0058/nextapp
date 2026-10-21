@@ -21,6 +21,15 @@ import {
   type ScanScopeSummary,
 } from "@/features/website-scanner/types/websiteDiscovery";
 import { aggregateSiteIssues } from "@/features/website-scanner/utils/aggregateSiteIssues";
+import { DEFAULT_ISSUES_FILTER } from "@/features/website-scanner/utils/issuesListUtils";
+import {
+  createInitialAccessibilityWorkspace,
+  WORKSPACE_SSR_PLACEHOLDER_ID,
+  WORKSPACE_SSR_PLACEHOLDER_TIME,
+} from "@/features/accessibility-workspace/createInitialWorkspace";
+import type { ReportContribution } from "@/features/accessibility-workspace/types";
+import { syncSessionHumanReview } from "@/features/human-review-workspace/syncSessionHumanReview";
+import { patchManualReviewAndRecords } from "@/features/human-review-workspace/syncSessionHumanReview";
 import { collectPageScanResults } from "@/features/website-scanner/utils/collectPageScanResults";
 import {
   comparePageViewports,
@@ -81,7 +90,10 @@ function recomputeScope(state: WebsiteScanSessionState): ScanScopeSummary {
   };
 }
 
-export function createInitialWebsiteSession(): WebsiteScanSessionState {
+export function createInitialWebsiteSession(options?: {
+  fixedNow?: string;
+  fixedWorkspaceId?: string;
+}): WebsiteScanSessionState {
   return {
     sessionId: "",
     rootUrl: "",
@@ -104,6 +116,7 @@ export function createInitialWebsiteSession(): WebsiteScanSessionState {
     liveMessage: "",
     resultView: "overview",
     issuesGroupBy: "root-cause",
+    issuesFilter: { ...DEFAULT_ISSUES_FILTER },
     explanationLevel: "simple",
     fixTaskStatus: {},
     aiGuidanceByGroup: {},
@@ -114,6 +127,8 @@ export function createInitialWebsiteSession(): WebsiteScanSessionState {
     aiRemediationInclusionById: {},
     showAllManualChecks: false,
     highlightFixTaskId: null,
+    highlightFindingId: null,
+    highlightHumanReviewCheckId: null,
     setupPhase: "configure",
     scanSource: "current_page",
     discoverySource: "current",
@@ -133,7 +148,22 @@ export function createInitialWebsiteSession(): WebsiteScanSessionState {
     viewportComparisonSummary: null,
     reportBranding: { ...DEFAULT_REPORT_BRANDING },
     exportPreferences: { ...DEFAULT_EXPORT_PREFERENCES },
+    accessibilityWorkspace: createInitialAccessibilityWorkspace(undefined, {
+      fixedNow: options?.fixedNow,
+      fixedWorkspaceId: options?.fixedWorkspaceId,
+    }),
   };
+}
+
+function upsertContribution(
+  list: ReportContribution[],
+  contribution: ReportContribution,
+): ReportContribution[] {
+  const idx = list.findIndex((c) => c.contributionId === contribution.contributionId);
+  if (idx === -1) return [...list, contribution];
+  const copy = [...list];
+  copy[idx] = contribution;
+  return copy;
 }
 
 export type WebsiteScanAction =
@@ -171,7 +201,19 @@ export type WebsiteScanAction =
   | { type: "MARK_AI_STALE" }
   | { type: "SAVE_SNAPSHOT_FOR_COMPARE" }
   | { type: "SET_RESULT_VIEW"; view: WebsiteScanSessionState["resultView"] }
+  | { type: "OPEN_HUMAN_REVIEW_CHECK"; checkDefinitionId: string }
+  | { type: "FOCUS_FINDING"; findingId: string }
   | { type: "SET_ISSUES_GROUP_BY"; groupBy: WebsiteScanSessionState["issuesGroupBy"] }
+  | {
+      type: "OPEN_ISSUES_WITH_FILTER";
+      filter: Partial<
+        import("@/features/website-scanner/utils/issuesListUtils").IssuesFilterState
+      >;
+    }
+  | {
+      type: "SET_ISSUES_FILTER";
+      filter: import("@/features/website-scanner/utils/issuesListUtils").IssuesFilterState;
+    }
   | { type: "SET_EXPLANATION_LEVEL"; level: WebsiteScanSessionState["explanationLevel"] }
   | {
       type: "SET_FIX_TASK_STATUS";
@@ -185,6 +227,18 @@ export type WebsiteScanAction =
       entry: import("@/features/website-scanner/types/websiteAiRemediation").WebsiteAiRemediationEntry;
     }
   | { type: "SET_HIGHLIGHT_FIX_TASK"; taskId: string | null }
+  | { type: "MERGE_PENDING_CONTRIBUTIONS"; contributions: ReportContribution[] }
+  | { type: "UPSERT_REPORT_CONTRIBUTION"; contribution: ReportContribution }
+  | {
+      type: "SET_CONTRIBUTION_INCLUDED";
+      contributionId: string;
+      included: boolean;
+    }
+  | { type: "REMOVE_REPORT_CONTRIBUTION"; contributionId: string }
+  | {
+      type: "APPLY_RETURN_TO_FINDING";
+      returnTo: import("@/features/accessibility-workspace/types").ReturnToFindingContext;
+    }
   | { type: "SET_INCLUDE_DEV_GUIDANCE_REPORT"; value: boolean }
   | { type: "SET_INCLUDE_AI_REMEDIATION_REPORT"; value: boolean }
   | { type: "SET_AI_REMEDIATION_INCLUSION"; id: string; included: boolean }
@@ -222,17 +276,41 @@ export type WebsiteScanAction =
   | { type: "SET_EXPORT_PREFERENCES"; prefs: Partial<WebsiteScanSessionState["exportPreferences"]> }
   | { type: "RESET" };
 
-function recomputeAggregates(pages: WebsitePageEntry[]): {
+function recomputeAggregates(
+  pages: WebsitePageEntry[],
+  session: WebsiteScanSessionState,
+): {
   aggregates: SiteRuleAggregate[] | null;
   siteIntelligence: import("@/features/accessibility-intelligence/types/siteIntelligence").SiteScanIntelligence | null;
+  accessibilityWorkspace?: WebsiteScanSessionState["accessibilityWorkspace"];
 } {
   const done = collectPageScanResults(pages);
   if (done.length === 0) {
     return { aggregates: null, siteIntelligence: null };
   }
+  const preIntel = buildSiteScanIntelligence(done, {
+    includeBestPractices: session.includeBestPractices,
+    urlsSelected: session.scanScope.urlsSelected,
+  });
+  const synced = syncSessionHumanReview({
+    session,
+    completedPages: done,
+    intel: preIntel,
+  });
+  const siteIntelligence = buildSiteScanIntelligence(done, {
+    includeBestPractices: session.includeBestPractices,
+    humanReviewTasks: synced.humanReviewOpenCount,
+    urlsSelected: session.scanScope.urlsSelected,
+  });
+  const syncedFinal = syncSessionHumanReview({
+    session: { ...session, accessibilityWorkspace: synced.workspace },
+    completedPages: done,
+    intel: siteIntelligence,
+  });
   return {
     aggregates: aggregateSiteIssues(done),
-    siteIntelligence: buildSiteScanIntelligence(done),
+    siteIntelligence,
+    accessibilityWorkspace: syncedFinal.workspace,
   };
 }
 
@@ -251,8 +329,26 @@ export function websiteScanReducer(
   action: WebsiteScanAction,
 ): WebsiteScanSessionState {
   switch (action.type) {
-    case "INIT_CLIENT":
-      return { ...state, sessionId: action.sessionId };
+    case "INIT_CLIENT": {
+      const now = new Date().toISOString();
+      const ws = state.accessibilityWorkspace ?? createInitialAccessibilityWorkspace();
+      return {
+        ...state,
+        sessionId: action.sessionId,
+        highlightFindingId: state.highlightFindingId ?? null,
+        accessibilityWorkspace: {
+          ...ws,
+          workspaceId:
+            ws.workspaceId === WORKSPACE_SSR_PLACEHOLDER_ID
+              ? action.sessionId
+              : ws.workspaceId,
+          createdAt:
+            ws.createdAt === WORKSPACE_SSR_PLACEHOLDER_TIME ? now : ws.createdAt,
+          updatedAt: now,
+          humanReviewRecords: ws.humanReviewRecords ?? [],
+        },
+      };
+    }
     case "RESET":
       return { ...createInitialWebsiteSession(), sessionId: state.sessionId };
     case "START_SCAN":
@@ -346,7 +442,7 @@ export function websiteScanReducer(
       const next = {
         ...state,
         pages,
-        ...recomputeAggregates(pages),
+        ...recomputeAggregates(pages, state),
         liveMessage: `Page ${scannedCount} complete.`,
         scanScope: recomputeScope({ ...state, pages }),
       };
@@ -366,7 +462,7 @@ export function websiteScanReducer(
         ...state,
         pages,
         status: state.status === "stopping" ? state.status : "partial",
-        ...recomputeAggregates(pages),
+        ...recomputeAggregates(pages, state),
       };
     }
     case "PAGE_SKIPPED": {
@@ -379,7 +475,7 @@ export function websiteScanReducer(
             }
           : p,
       );
-      return { ...state, pages, ...recomputeAggregates(pages) };
+      return { ...state, pages, ...recomputeAggregates(pages, state) };
     }
     case "STOP_SCAN":
       return {
@@ -420,7 +516,18 @@ export function websiteScanReducer(
               note: action.note ?? "",
             },
           ];
-      return { ...state, manualReview };
+      const accessibilityWorkspace = patchManualReviewAndRecords(
+        { ...state, manualReview },
+        action.itemId,
+        action.status,
+        action.note,
+      );
+      const nextState = { ...state, manualReview, accessibilityWorkspace };
+      const agg = recomputeAggregates(nextState.pages, nextState);
+      return {
+        ...nextState,
+        ...agg,
+      };
     }
     case "SET_AI_GUIDANCE": {
       const aiGuidance = { ...state.aiGuidance };
@@ -446,8 +553,31 @@ export function websiteScanReducer(
     }
     case "SET_RESULT_VIEW":
       return { ...state, resultView: action.view };
+    case "OPEN_HUMAN_REVIEW_CHECK":
+      return {
+        ...state,
+        resultView: "human-review",
+        highlightHumanReviewCheckId: action.checkDefinitionId,
+      };
+    case "FOCUS_FINDING":
+      return {
+        ...state,
+        resultView: "issues",
+        highlightFindingId: action.findingId,
+      };
     case "SET_ISSUES_GROUP_BY":
       return { ...state, issuesGroupBy: action.groupBy };
+    case "OPEN_ISSUES_WITH_FILTER":
+      return {
+        ...state,
+        resultView: "issues",
+        issuesFilter: {
+          ...state.issuesFilter,
+          ...action.filter,
+        },
+      };
+    case "SET_ISSUES_FILTER":
+      return { ...state, issuesFilter: action.filter };
     case "SET_EXPLANATION_LEVEL":
       return { ...state, explanationLevel: action.level };
     case "SET_FIX_TASK_STATUS":
@@ -476,6 +606,71 @@ export function websiteScanReducer(
       };
     case "SET_HIGHLIGHT_FIX_TASK":
       return { ...state, highlightFixTaskId: action.taskId };
+    case "MERGE_PENDING_CONTRIBUTIONS": {
+      let contributions = state.accessibilityWorkspace.contributions;
+      for (const c of action.contributions) {
+        contributions = upsertContribution(contributions, c);
+      }
+      return {
+        ...state,
+        accessibilityWorkspace: {
+          ...state.accessibilityWorkspace,
+          contributions,
+          updatedAt: new Date().toISOString(),
+        },
+      };
+    }
+    case "UPSERT_REPORT_CONTRIBUTION":
+      return {
+        ...state,
+        accessibilityWorkspace: {
+          ...state.accessibilityWorkspace,
+          contributions: upsertContribution(
+            state.accessibilityWorkspace.contributions,
+            action.contribution,
+          ),
+          updatedAt: new Date().toISOString(),
+        },
+      };
+    case "SET_CONTRIBUTION_INCLUDED": {
+      const contributions = state.accessibilityWorkspace.contributions.map((c) =>
+        c.contributionId === action.contributionId
+          ? { ...c, includedInReport: action.included, updatedAt: new Date().toISOString() }
+          : c,
+      );
+      return {
+        ...state,
+        accessibilityWorkspace: {
+          ...state.accessibilityWorkspace,
+          contributions,
+          updatedAt: new Date().toISOString(),
+        },
+      };
+    }
+    case "REMOVE_REPORT_CONTRIBUTION":
+      return {
+        ...state,
+        accessibilityWorkspace: {
+          ...state.accessibilityWorkspace,
+          contributions: state.accessibilityWorkspace.contributions.filter(
+            (c) => c.contributionId !== action.contributionId,
+          ),
+          updatedAt: new Date().toISOString(),
+        },
+      };
+    case "APPLY_RETURN_TO_FINDING":
+      return {
+        ...state,
+        resultView: action.returnTo.resultView ?? "issues",
+        issuesFilter: action.returnTo.issuesFilter
+          ? { ...state.issuesFilter, ...action.returnTo.issuesFilter }
+          : state.issuesFilter,
+        highlightFindingId: action.returnTo.highlightFindingId ?? action.returnTo.findingId,
+        accessibilityWorkspace: {
+          ...state.accessibilityWorkspace,
+          returnToFinding: action.returnTo,
+        },
+      };
     case "SET_INCLUDE_DEV_GUIDANCE_REPORT":
       return {
         ...state,
@@ -636,7 +831,7 @@ export function websiteScanReducer(
       return {
         ...state,
         pages,
-        ...recomputeAggregates(pages),
+        ...recomputeAggregates(pages, state),
         viewportComparisonSummary: recomputeViewportSummary(pages),
         scanScope: recomputeScope({ ...state, pages }),
       };

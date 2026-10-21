@@ -1,7 +1,12 @@
 import {
-  getRuleKnowledge,
   getUserImpactForRule,
 } from "@/features/accessibility-intelligence/knowledge/ruleKnowledge";
+import {
+  getDeterministicRemediation,
+  getRemediationLibraryVersion,
+  hasFullDeterministicRemediation,
+} from "@/features/website-scanner/remediation/registry";
+import { toRuleKnowledge } from "@/features/website-scanner/remediation/adaptRuleKnowledge";
 import { acceptanceCriteriaForRule } from "@/features/website-scanner/developerTicket/acceptanceCriteriaForRule";
 import {
   DEVELOPER_TICKET_VERSION,
@@ -46,8 +51,10 @@ function rootCauseConfidenceNote(
 }
 
 function buildSummary(input: BuildDeveloperTicketInput): string {
-  const knowledge = getRuleKnowledge(input.ruleId);
-  const template = knowledge?.deterministicFixTemplate;
+  const remediation = getDeterministicRemediation(input.ruleId);
+  const template = remediation
+    ? toRuleKnowledge(remediation).deterministicFixTemplate
+    : undefined;
   const rc = input.rootCause;
   if (rc) {
     const pages = rc.affectedPages.length;
@@ -136,7 +143,8 @@ function collectPagePaths(input: BuildDeveloperTicketInput): {
 }
 
 export function buildDeveloperTicket(input: BuildDeveloperTicketInput): DeveloperTicket {
-  const knowledge = getRuleKnowledge(input.ruleId);
+  const remediation = getDeterministicRemediation(input.ruleId);
+  const knowledge = remediation ? toRuleKnowledge(remediation) : undefined;
   const template = knowledge?.deterministicFixTemplate;
   const rc = input.rootCause;
   const pages = collectPagePaths(input);
@@ -169,7 +177,19 @@ export function buildDeveloperTicket(input: BuildDeveloperTicketInput): Develope
   }
 
   const recommendedFix: string[] = [];
-  if (template) {
+  if (remediation && hasFullDeterministicRemediation(input.ruleId)) {
+    recommendedFix.push(
+      `Deterministic guidance (library v${getRemediationLibraryVersion()}, definition v${remediation.definitionVersion})`,
+    );
+    recommendedFix.push(remediation.shortProblem);
+    recommendedFix.push(remediation.whyItMatters);
+    recommendedFix.push("Implementation steps:");
+    recommendedFix.push(...remediation.remediationSteps.map((s) => `- ${s}`));
+    if (remediation.examples?.html) {
+      recommendedFix.push("Example (HTML):");
+      recommendedFix.push(remediation.examples.html);
+    }
+  } else if (template) {
     recommendedFix.push(template.whatIsWrong);
     recommendedFix.push(template.whyItMatters);
     const lines = template.genericPattern.split("\n").filter(Boolean);
@@ -180,7 +200,7 @@ export function buildDeveloperTicket(input: BuildDeveloperTicketInput): Develope
     }
   } else {
     recommendedFix.push(
-      "Review the implementation in context before selecting a remediation approach.",
+      "Suggested implementation — review before implementation.",
     );
     recommendedFix.push(input.axeHelp);
   }
@@ -225,11 +245,13 @@ export function buildDeveloperTicket(input: BuildDeveloperTicketInput): Develope
     possibleImplementationPattern: knowledge?.afterExample
       ? knowledge.afterExample
       : undefined,
-    acceptanceCriteria: acceptanceCriteriaForRule(
-      input.ruleId,
-      template,
-      input.humanReviewRequired,
-    ),
+    acceptanceCriteria: remediation?.developerAcceptanceCriteria.length
+      ? remediation.developerAcceptanceCriteria
+      : acceptanceCriteriaForRule(
+          input.ruleId,
+          template,
+          input.humanReviewRequired,
+        ),
     verificationSteps: verificationStepsForTicket({
       ruleId: input.ruleId,
       template,

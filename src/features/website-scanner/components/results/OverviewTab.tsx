@@ -3,106 +3,77 @@
 import type { SiteScanIntelligence } from "@/features/accessibility-intelligence/types/siteIntelligence";
 import type { WebsitePageScanResult } from "@/features/website-scanner/types/scanTypes";
 import { useWebsiteScanSession } from "@/features/website-scanner/context/WebsiteScanProvider";
-import { StartHereCard } from "@/features/website-scanner/components/results/StartHereCard";
 import { RootCauseCard } from "@/features/website-scanner/components/results/RootCauseCard";
 import { WcagCoverageMatrix } from "@/features/website-scanner/components/results/WcagCoverageMatrix";
-import { ScanQualityPanel } from "@/features/website-scanner/components/results/ScanQualityPanel";
 import { ViewportComparisonPanel } from "@/features/website-scanner/components/results/ViewportComparisonPanel";
-import {
-  aggregateEvidenceReporting,
-  aggregatePageExecution,
-  buildSiteScanDiagnostics,
-  formatEvidenceReportingLabel,
-  formatPageExecutionLabel,
-} from "@/features/website-scanner/utils/pageScanDiagnostics";
-import {
-  getStartHereItems,
-  pagesByIssueCount,
-  sortRootCauseGroups,
-} from "@/features/website-scanner/utils/issueViewModels";
+import { AffectedAreasSection } from "@/features/website-scanner/components/results/overview/AffectedAreasSection";
+import { CoverageDiagnosticSection } from "@/features/website-scanner/components/results/overview/CoverageDiagnosticSection";
+import { OverviewScopeStrip } from "@/features/website-scanner/components/results/overview/OverviewScopeStrip";
+import { PreflightSnapshotSection } from "@/features/website-scanner/components/results/overview/PreflightSnapshotSection";
+import { TopRemediationPriorityCard } from "@/features/website-scanner/components/results/overview/TopRemediationPriorityCard";
+import { HumanReviewOverviewStrip } from "@/features/website-scanner/components/results/overview/HumanReviewOverviewStrip";
+import { sortRootCauseGroups } from "@/features/website-scanner/utils/issueViewModels";
 
 type Props = {
   intel: SiteScanIntelligence | null;
   completedPages: WebsitePageScanResult[];
-  totalIncomplete: number;
 };
 
-export function OverviewTab({ intel, completedPages, totalIncomplete }: Props) {
+export function OverviewTab({ intel, completedPages }: Props) {
   const { dispatch } = useWebsiteScanSession();
-  const pageExecution = aggregatePageExecution(completedPages);
-  const evidenceReporting = aggregateEvidenceReporting(completedPages);
-  const diagnostics = buildSiteScanDiagnostics(completedPages);
-  const executionReasons = diagnostics.flatMap((d) => d.executionReasons);
-  const evidenceReasons = diagnostics.flatMap((d) => d.evidenceReasons);
-  const startHere = intel ? getStartHereItems(intel.fixPlan) : [];
-  const rootGroups = intel
-    ? sortRootCauseGroups(intel.rootCauseGroups).slice(0, 5)
+  const exec = intel?.executivePreflight;
+  const snapshot = exec?.snapshot;
+  const noViolations = (snapshot?.failedAutomatedRules ?? 0) === 0;
+  const sharedGroups = intel
+    ? sortRootCauseGroups(intel.rootCauseGroups).filter(
+        (g) => g.likelySharedComponent,
+      )
     : [];
-  const hotspots = intel
-    ? pagesByIssueCount(intel.ruleAggregates, completedPages).slice(0, 5)
-    : [];
-  const uniqueIssues = intel?.summary.uniqueAutomatedRules ?? 0;
-  const noViolations = uniqueIssues === 0;
 
   return (
-    <div className="space-y-6">
-      {pageExecution !== "complete" && (
-        <div role="alert" className="rounded-lg border border-amber-600 bg-amber-50 p-4 text-sm dark:bg-amber-950/30">
-          <strong>
-            Page execution: {formatPageExecutionLabel(pageExecution)}.
-          </strong>{" "}
-          {executionReasons.length > 0
-            ? executionReasons.join(" ")
-            : "The page scan did not fully complete. Treat missing coverage as unknown risk until you rescan."}
-        </div>
-      )}
-      {evidenceReporting === "limited" && (
-        <div role="status" className="rounded-lg border border-border bg-muted/30 p-4 text-sm">
-          <strong>
-            Evidence reporting: {formatEvidenceReportingLabel(evidenceReporting)}.
-          </strong>{" "}
-          {evidenceReasons.length > 0
-            ? evidenceReasons.join(" ")
-            : "Some affected elements are summarized without full per-node detail."}
-        </div>
-      )}
-      {totalIncomplete > 0 && (
-        <div role="status" className="rounded-lg border border-border bg-muted/30 p-4 text-sm">
-          <strong>
-            Manual confirmation required: {totalIncomplete} automated check
-            {totalIncomplete === 1 ? "" : "s"} could not be fully determined.
-          </strong>{" "}
-          See Human review and Issues marked “Needs manual confirmation”.
-        </div>
+    <div className="space-y-8">
+      <OverviewScopeStrip />
+
+      {exec && snapshot && (
+        <>
+          <PreflightSnapshotSection snapshot={snapshot} />
+          <CoverageDiagnosticSection rows={exec.coverageDiagnostic} />
+        </>
       )}
 
-      <ScanQualityPanel pages={completedPages} />
-      <ViewportComparisonPanel />
+      {snapshot && snapshot.passedAutomatedRules > 0 && (
+        <p className="text-sm text-muted">
+          {snapshot.passedAutomatedRules} automated rule
+          {snapshot.passedAutomatedRules === 1 ? "" : "s"} passed on this
+          scanned page state.{" "}
+          <button
+            type="button"
+            className="font-medium text-primary underline-offset-2 hover:underline"
+            onClick={() => dispatch({ type: "SET_RESULT_VIEW", view: "coverage" })}
+          >
+            View coverage
+          </button>
+          <span
+            className="ml-1 cursor-help border-b border-dotted border-muted"
+            title="Passing automated checks does not establish WCAG compliance."
+          >
+            (not compliance)
+          </span>
+        </p>
+      )}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <SummaryCard label="Unique automated rules" value={uniqueIssues} />
-        <SummaryCard
-          label="Shared root causes"
-          value={intel?.summary.sharedRootCauses ?? intel?.summary.likelyRootCauses ?? 0}
-        />
-        <SummaryCard
-          label="Total elements (occurrences)"
-          value={intel?.summary.totalOccurrences ?? 0}
-        />
-        <SummaryCard label="Human review (axe incomplete)" value={totalIncomplete} />
-        <SummaryCard label="Pages scanned" value={completedPages.length} />
-        <SummaryCard
-          label="Page execution"
-          value={formatPageExecutionLabel(pageExecution)}
-        />
-      </div>
+      {exec && <AffectedAreasSection categories={exec.categorySummary} />}
+
+      <HumanReviewOverviewStrip completedPages={completedPages} />
 
       {noViolations ? (
-        <div className="rounded-lg border border-border p-6 text-center">
-          <p className="font-semibold">No automated WCAG violations detected</p>
+        <div className="rounded-lg border border-border p-6">
+          <p className="font-semibold">
+            No automated WCAG failures were detected in the scanned state.
+          </p>
           <p className="mt-2 text-sm text-muted">
-            Automated scans still miss many requirements. Continue with guided human
-            review.
+            This does not establish accessibility compliance. Manual review and
+            incomplete checks may still apply.
           </p>
           <button
             type="button"
@@ -115,75 +86,96 @@ export function OverviewTab({ intel, completedPages, totalIncomplete }: Props) {
           </button>
         </div>
       ) : (
-        <>
-          <section>
-            <h3 className="font-display text-lg font-bold">Start here</h3>
+        exec &&
+        exec.topRemediationPriorities.length > 0 && (
+          <section aria-labelledby="top-priorities-heading">
+            <h3
+              id="top-priorities-heading"
+              className="font-display text-lg font-bold"
+            >
+              Top remediation priorities
+            </h3>
             <p className="mt-1 text-sm text-muted">
-              Top priorities from your fix plan — not a score.
+              Highest-impact fixes from your plan — not a compliance score.
             </p>
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
-              {startHere.map((item) => {
-                const group = intel?.rootCauseGroups.find(
-                  (g) => g.id === item.rootCauseGroupId,
-                );
-                return (
-                  <StartHereCard
-                    key={item.rank}
-                    item={item}
-                    sharedFixHint={
-                      item.likelySharedFix &&
-                      (group?.confidence ?? "low") !== "low"
-                    }
-                  />
-                );
-              })}
+              {exec.topRemediationPriorities.map((item) => (
+                <TopRemediationPriorityCard key={item.id} item={item} />
+              ))}
             </div>
           </section>
-
-          {rootGroups.length > 0 && (
-            <section>
-              <h3 className="font-display text-lg font-bold">Remediation groups</h3>
-              <ul className="mt-3 space-y-3">
-                {rootGroups.map((g) => {
-                  const f = intel?.normalizedFindings.find(
-                    (x) => x.ruleId === g.ruleId,
-                  );
-                  return (
-                    <RootCauseCard key={g.id} group={g} impact={f?.impact} />
-                  );
-                })}
-              </ul>
-            </section>
-          )}
-        </>
+        )
       )}
+
+      {intel && (
+        <section aria-labelledby="shared-root-heading">
+          <h3 id="shared-root-heading" className="font-display text-lg font-bold">
+            Shared remediation root causes
+          </h3>
+          {exec && exec.sharedRootCauseCount === 0 ? (
+            <p className="mt-2 text-sm text-muted">
+              No shared remediation root cause was confidently identified.
+            </p>
+          ) : (
+            <ul className="mt-3 space-y-3">
+              {sharedGroups.slice(0, 5).map((g) => {
+                const f = intel.normalizedFindings.find(
+                  (x) => x.ruleId === g.ruleId,
+                );
+                return (
+                  <RootCauseCard key={g.id} group={g} impact={f?.impact} />
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      )}
+
+      <ViewportComparisonPanel />
 
       {intel && intel.wcagCoverage.length > 0 && (
         <WcagCoverageMatrix coverage={intel.wcagCoverage} />
       )}
 
-      {hotspots.length > 0 && (
-        <section>
-          <h3 className="font-display text-lg font-bold">Page hotspots</h3>
-          <ul className="mt-2 space-y-1 text-sm">
-            {hotspots.map((h) => (
-              <li key={h.pageUrl}>
-                <span className="font-medium">{h.uniqueIssues}</span> unique rule(s) —{" "}
-                <span className="break-all text-muted">{h.pageUrl}</span>
+      {exec && exec.pageHotspots.length > 0 && (
+        <section aria-labelledby="page-hotspots-heading">
+          <h3 id="page-hotspots-heading" className="font-display text-lg font-bold">
+            Page hotspots
+          </h3>
+          <ul className="mt-3 space-y-2 text-sm">
+            {exec.pageHotspots.map((h) => (
+              <li
+                key={h.pageUrl}
+                className="rounded-lg border border-border px-3 py-2"
+              >
+                <button
+                  type="button"
+                  className="break-all text-left font-medium text-primary underline-offset-2 hover:underline"
+                  onClick={() =>
+                    dispatch({
+                      type: "OPEN_ISSUES_WITH_FILTER",
+                      filter: { pageUrl: h.pageUrl, issueStatus: "actionable" },
+                    })
+                  }
+                >
+                  {h.pageUrl}
+                </button>
+                <p className="mt-1 text-muted">
+                  {h.failedRules} failed rule{h.failedRules === 1 ? "" : "s"} ·{" "}
+                  {h.affectedOccurrences} affected occurrence
+                  {h.affectedOccurrences === 1 ? "" : "s"} ·{" "}
+                  {h.seriousCriticalRules} serious/critical ·{" "}
+                  {h.needsConfirmation} need confirmation · {h.completenessLabel}
+                </p>
               </li>
             ))}
           </ul>
         </section>
       )}
-    </div>
-  );
-}
 
-function SummaryCard({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="rounded-lg border border-border p-4">
-      <p className="text-xs uppercase tracking-wide text-muted">{label}</p>
-      <p className="mt-1 font-display text-2xl font-bold">{value}</p>
+      {completedPages.length === 0 && (
+        <p className="text-sm text-muted">No completed pages in this session.</p>
+      )}
     </div>
   );
 }

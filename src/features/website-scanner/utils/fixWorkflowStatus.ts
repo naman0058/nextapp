@@ -33,7 +33,7 @@ export function resolveDisplayFixStatus(input: {
       );
       const nowOcc = rootCauseGroup.totalOccurrences;
       if (prevOcc > 0 && nowOcc === 0 && resolved > 0) {
-        return "Verified by Rescan";
+        return "No longer detected in this automated rescan";
       }
       if (prevOcc > nowOcc && nowOcc > 0) {
         return "Partially Improved";
@@ -41,7 +41,7 @@ export function resolveDisplayFixStatus(input: {
     }
 
     if (resolved > 0 && persistent === 0 && changed === 0) {
-      return "Verified by Rescan";
+      return "No longer detected in this automated rescan";
     }
     if (resolved > 0 && (persistent > 0 || changed > 0)) {
       return "Partially Improved";

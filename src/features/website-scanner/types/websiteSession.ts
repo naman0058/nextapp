@@ -7,6 +7,7 @@ import type {
   ResultViewTab,
   UserFixTaskStatus,
 } from "@/features/website-scanner/types/resultUx";
+import type { IssuesFilterState } from "@/features/website-scanner/utils/issuesListUtils";
 import type { SiteScanIntelligence } from "@/features/accessibility-intelligence/types/siteIntelligence";
 import type {
   DiscoveredUrl,
@@ -90,6 +91,7 @@ export type WebsiteScanSessionState = {
   liveMessage: string;
   resultView: ResultViewTab;
   issuesGroupBy: IssuesGroupBy;
+  issuesFilter: IssuesFilterState;
   explanationLevel: ExplanationLevel;
   fixTaskStatus: Record<string, UserFixTaskStatus>;
   aiGuidanceByGroup: Record<string, WebsiteFixGuidance & { stale?: boolean }>;
@@ -100,6 +102,10 @@ export type WebsiteScanSessionState = {
   aiRemediationInclusionById: Record<string, boolean>;
   showAllManualChecks: boolean;
   highlightFixTaskId: string | null;
+  /** Phase 6: scroll/highlight target in Issues explorer after tool handoff return. */
+  highlightFindingId: string | null;
+  /** Phase 7: scroll/highlight human review check after navigation from a finding. */
+  highlightHumanReviewCheckId: string | null;
   setupPhase: SetupPhase;
   scanSource: "current_page" | "discover_site" | "sitemap";
   discoverySource: ScanScopeSummary["discoverySource"];
@@ -115,4 +121,6 @@ export type WebsiteScanSessionState = {
   viewportComparisonSummary: import("@/features/website-scanner/types/viewportComparison").SiteViewportComparisonSummary | null;
   reportBranding: ReportBranding;
   exportPreferences: ExportPreferences;
+  /** Phase 6 cross-tool workspace (local session contributions). */
+  accessibilityWorkspace: import("@/features/accessibility-workspace/types").AccessibilityWorkspaceState;
 };

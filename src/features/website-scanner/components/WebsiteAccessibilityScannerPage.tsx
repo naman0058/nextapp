@@ -13,6 +13,7 @@ const VALID_VIEWS: ResultViewTab[] = [
   "issues",
   "fix-plan",
   "human-review",
+  "coverage",
   "inventory",
   "report",
 ];

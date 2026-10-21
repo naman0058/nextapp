@@ -26,7 +26,10 @@ export type OverallReportStatus =
   | "Ready for Final Review"
   | "Review Recommended"
   | "Important Issues Identified"
-  | "Incomplete Preflight";
+  | "Incomplete Preflight"
+  | "Important automated findings identified"
+  | "Manual confirmation remains"
+  | "No automated WCAG failures in scanned state";
 
 export function mapPreflightStatus(status: PreflightStatus): ReportStatus {
   switch (status) {

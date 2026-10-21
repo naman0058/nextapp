@@ -160,7 +160,10 @@ export function buildSampleAccessibilityReportFixture(): SampleAccessibilityRepo
       }
     : {};
 
-  const base = createInitialWebsiteSession();
+  const base = createInitialWebsiteSession({
+    fixedNow: SAMPLE_DEMONSTRATION_DATE,
+    fixedWorkspaceId: "sample-workspace",
+  });
   const session = {
     ...base,
     sessionId: "sample-demo-session",

@@ -5,6 +5,7 @@ import { ReportBrandingPanel } from "@/features/website-scanner/components/resul
 import { useWebsiteScanSession } from "@/features/website-scanner/context/WebsiteScanProvider";
 import type { WebsitePageScanResult } from "@/features/website-scanner/types/scanTypes";
 import { ReportAiRemediationInclusionPanel } from "@/features/reports/components/ReportAiRemediationInclusionPanel";
+import { IncludedInReviewSection } from "@/features/accessibility-workspace/components/IncludedInReviewSection";
 import { collectWebsiteRemediationCandidates } from "@/lib/ai/remediation/report";
 
 type Props = { completedPages: WebsitePageScanResult[] };
@@ -18,6 +19,7 @@ export function ReportTab({ completedPages }: Props) {
 
   return (
     <div className="space-y-4">
+      <IncludedInReviewSection />
       <ReportBrandingPanel />
       <label className="flex items-center gap-2 text-sm">
         <input

@@ -28,6 +28,9 @@ import { saveVisualPreflightSession } from "@/features/accessibility/utils/visua
 import { Button } from "@/components/ui/Button";
 import { StatusMessage } from "@/components/ui/StatusMessage";
 import { Card } from "@/components/ui/Card";
+import { readToolHandoff } from "@/features/accessibility-workspace/handoffStorage";
+import { WorkspaceContrastHandoffPanel } from "@/features/accessibility-workspace/components/WorkspaceContrastHandoffPanel";
+import { WorkspaceImageAltHandoffPanel } from "@/features/accessibility-workspace/components/WorkspaceImageAltHandoffPanel";
 
 function imageFingerprint(file: File | null | undefined): string | null {
   if (!file) return null;
@@ -44,16 +47,28 @@ export function VisualAccessibilityPanel({
   standaloneFileName = null,
   onContrastSnapshotChange,
 }: VisualAccessibilityPanelProps) {
-  const [state, dispatch] = useReducer(
-    visualPanelReducer,
-    undefined,
-    createInitialVisualState,
-  );
+  const [state, dispatch] = useReducer(visualPanelReducer, undefined, () => {
+    const initial = createInitialVisualState();
+    const handoff = readToolHandoff();
+    if (handoff?.toolId !== "contrast_checker") return initial;
+    try {
+      if (handoff.foregroundColor) {
+        parseHexColor(handoff.foregroundColor);
+        initial.foregroundHex = handoff.foregroundColor;
+      }
+      if (handoff.backgroundColor) {
+        parseHexColor(handoff.backgroundColor);
+        initial.backgroundHex = handoff.backgroundColor;
+      }
+    } catch {
+      /* scanner colors may not be valid hex */
+    }
+    return initial;
+  });
   const [contrastAiRemediation, setContrastAiRemediation] = useState<AiRemediationEntry | null>(
     () => loadVisualPreflightSession()?.contrastAiRemediation ?? null,
   );
   const [contrastRemKey, setContrastRemKey] = useState("");
-
   const effectiveFile = imageFile;
   const effectivePreview = imagePreviewUrl;
   const effectiveName = standaloneFileName ?? imageFile?.name ?? null;
@@ -170,9 +185,24 @@ export function VisualAccessibilityPanel({
     onStandaloneImage?.(file, url);
   }
 
+  const measured =
+    Boolean(evaluation) &&
+    !parseError &&
+    (state.backgroundSamples.length > 0 ||
+      state.foregroundHex !== createInitialVisualState().foregroundHex ||
+      state.backgroundHex !== createInitialVisualState().backgroundHex);
+
   return (
     <div className="space-y-6">
       <VisualPrivacyNote />
+      <WorkspaceImageAltHandoffPanel />
+      <WorkspaceContrastHandoffPanel
+        evaluation={evaluation}
+        foregroundHex={state.foregroundHex}
+        backgroundHex={state.backgroundHex}
+        textType={state.textType}
+        measured={measured}
+      />
 
       {mode === "standalone" ? (
         <Card className="space-y-3 p-4">

@@ -4,6 +4,10 @@ import {
   AXE_EXPLICIT_RULE_IDS,
   buildAxeRunTags,
 } from "@/features/website-scanner/constants/axeScanConfig";
+import { buildSiteScanIntelligence } from "@/features/accessibility-intelligence/buildSiteScanIntelligence";
+import { buildPageScanCoverageAudit } from "@/features/website-scanner/coverage/buildScanCoverageAudit";
+import { shouldCaptureCoverageAudit } from "@/features/website-scanner/coverage/shouldCaptureCoverageAudit";
+import { summarizeRawAxeResults } from "@/features/website-scanner/coverage/summarizeRawAxeResults";
 import {
   MAX_REDIRECTS,
   PAGE_NAVIGATION_TIMEOUT_MS,
@@ -199,7 +203,7 @@ export async function scanPageInContext(
       scanTimeout: false,
     });
 
-    return {
+    const pageResult: WebsitePageScanResult = {
       requestedUrl: validated.href,
       finalUrl,
       pageTitle: pageTitle || null,
@@ -212,6 +216,7 @@ export async function scanPageInContext(
       summary: normalized.summary,
       violations: normalized.violations,
       incomplete: normalized.incomplete,
+      axeEvaluatedRules: normalized.axeEvaluatedRules,
       passesCount: normalized.passesCount,
       inapplicableCount: normalized.inapplicableCount,
       discoveredLinks,
@@ -224,6 +229,37 @@ export async function scanPageInContext(
         examplesShown,
       ),
     };
+
+    if (shouldCaptureCoverageAudit(request)) {
+      const rawInventory = summarizeRawAxeResults(axeResults);
+      const intel = buildSiteScanIntelligence([pageResult]);
+      const issueRuleIds = new Set(
+        intel.normalizedFindings
+          .filter((f) => f.status === "issue" && f.ruleId)
+          .map((f) => f.ruleId!),
+      );
+      const reviewRuleIds = new Set(
+        intel.normalizedFindings
+          .filter((f) => f.status === "review" && f.ruleId)
+          .map((f) => f.ruleId!),
+      );
+      const rootCauseRuleIds = new Set(
+        intel.rootCauseGroups.map((g) => g.ruleId),
+      );
+      pageResult.coverageAudit = buildPageScanCoverageAudit({
+        pageUrl: finalUrl,
+        includeBestPractices: request.includeBestPractices,
+        axeRunTags: tags,
+        rawInventory,
+        page: pageResult,
+        rootCauseRuleIds,
+        normalizedIssueRuleIds: issueRuleIds,
+        normalizedReviewRuleIds: reviewRuleIds,
+        reportFindingRuleIds: new Set(),
+      });
+    }
+
+    return pageResult;
   } catch (err) {
     if (err instanceof WebsiteScanError) throw err;
     const message =

@@ -18,6 +18,8 @@ export type WebsitePageScanRequest = {
   rootOrigin: string | null;
   includeBestPractices: boolean;
   scanId?: string;
+  /** Dev/test: attach raw axe inventory and rule disposition ledger on the page result. */
+  captureCoverageAudit?: boolean;
 };
 
 export type WebsiteCrawlDiscoveredUrl = {
@@ -157,6 +159,10 @@ export type WebsitePageScanResult = {
   scanCompleteness?: ScanCompletenessLevel;
   scanQuality?: PageScanQuality;
   nodeReporting?: PageNodeReporting;
+  /** Full axe rule inventory for taxonomy ledger (violations, incomplete, passes, inapplicable). */
+  axeEvaluatedRules?: import("@/features/website-scanner/taxonomy/types").AxeEvaluatedRuleRecord[];
+  /** Present when coverage audit capture is enabled (dev/test). */
+  coverageAudit?: import("@/features/website-scanner/coverage/types").PageScanCoverageAudit;
 };
 
 export type SiteRulePageOccurrence = {

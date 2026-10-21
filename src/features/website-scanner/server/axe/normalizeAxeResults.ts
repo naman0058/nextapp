@@ -15,6 +15,7 @@ import { buildDomSignature } from "@/features/accessibility-intelligence/groupin
 import { sanitizeHtmlSnippet } from "@/features/accessibility-intelligence/evidence/sanitizeHtmlSnippet";
 import { inferLandmarkFromSelector } from "@/features/accessibility-intelligence/evidence/inferLandmarkFromSelector";
 import { selectRepresentativeNodes } from "@/features/accessibility-intelligence/evidence/selectRepresentativeNodes";
+import type { AxeEvaluatedRuleRecord } from "@/features/website-scanner/taxonomy/types";
 import type {
   AxeImpact,
   ElementContextSummary,
@@ -123,7 +124,7 @@ function mapViolation(
     help: rule.help,
     description: rule.description,
     helpUrl: rule.helpUrl,
-    tags: [...rule.tags],
+    tags: [...(rule.tags ?? [])],
     wcagCriteria: extractWcagCriteria(rule.tags),
     level: deriveRuleLevel(rule.tags),
     totalNodeCount: rule.nodes.length,
@@ -142,11 +143,40 @@ function mapIncomplete(
     help: rule.help,
     description: rule.description,
     helpUrl: rule.helpUrl,
-    tags: [...rule.tags],
+    tags: [...(rule.tags ?? [])],
     wcagCriteria: extractWcagCriteria(rule.tags),
     level: deriveRuleLevel(rule.tags),
     totalNodeCount: rule.nodes.length,
     nodes: mapNodes(rule.id, rule.nodes, remainingBudget),
+  };
+}
+
+function rawEvaluatedRecord(
+  rule: {
+    id: string;
+    impact?: string | null;
+    help: string;
+    description?: string;
+    tags?: string[];
+    nodes: unknown[];
+  },
+  axeBucket: AxeEvaluatedRuleRecord["axeBucket"],
+  includeBestPractices: boolean,
+): AxeEvaluatedRuleRecord {
+  const tags = rule.tags ?? [];
+  const isBp = isBestPracticeRule(tags);
+  const excluded =
+    isBp && !includeBestPractices && axeBucket === "violation";
+  return {
+    ruleId: rule.id,
+    axeBucket,
+    nodeCount: rule.nodes.length,
+    help: rule.help,
+    description: rule.description,
+    tags: [...tags],
+    impact: mapImpact(rule.impact),
+    isBestPractice: isBp,
+    excludedFromViolations: excluded || undefined,
   };
 }
 
@@ -160,6 +190,7 @@ export function normalizeAxeResults(
   inapplicableCount: number;
   summary: PageAccessibilitySummary;
   axeVersion: string;
+  axeEvaluatedRules: AxeEvaluatedRuleRecord[];
 } {
   const remainingBudget = { count: MAX_TOTAL_REPORTED_NODES_PER_PAGE };
   const violations: WebsiteAccessibilityViolation[] = [];
@@ -192,6 +223,19 @@ export function normalizeAxeResults(
     summary[v.impact === "unknown" ? "unknown" : v.impact] += 1;
   }
 
+  const axeEvaluatedRules: AxeEvaluatedRuleRecord[] = [
+    ...results.violations.map((r) =>
+      rawEvaluatedRecord(r, "violation", includeBestPractices),
+    ),
+    ...results.incomplete.map((r) =>
+      rawEvaluatedRecord(r, "incomplete", includeBestPractices),
+    ),
+    ...results.passes.map((r) => rawEvaluatedRecord(r, "pass", includeBestPractices)),
+    ...results.inapplicable.map((r) =>
+      rawEvaluatedRecord(r, "inapplicable", includeBestPractices),
+    ),
+  ];
+
   return {
     violations,
     incomplete,
@@ -199,6 +243,7 @@ export function normalizeAxeResults(
     inapplicableCount: results.inapplicable.length,
     summary,
     axeVersion: results.testEngine?.version ?? "unknown",
+    axeEvaluatedRules,
   };
 }
 

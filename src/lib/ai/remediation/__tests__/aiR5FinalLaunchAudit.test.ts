@@ -65,6 +65,16 @@ describe("AI-R5 final launch audit", () => {
       expect(runRemediationRequest).not.toHaveBeenCalled();
     });
 
+    it("returns 503 when client NEXT_PUBLIC flag is on but server AI is disabled", async () => {
+      stubRemediationReady();
+      vi.stubEnv("NEXT_PUBLIC_AI_REMEDIATION_ENABLED", "1");
+      vi.stubEnv("AI_REMEDIATION_ENABLED", "0");
+      const res = await postMinimal();
+      expect(res.status).toBe(503);
+      expect((await res.json()).code).toBe("AI_REMEDIATION_UNAVAILABLE");
+      expect(runRemediationRequest).not.toHaveBeenCalled();
+    });
+
     it("returns 503 when OPENAI_API_KEY is missing", async () => {
       stubRemediationReady();
       vi.stubEnv("OPENAI_API_KEY", "");

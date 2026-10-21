@@ -46,6 +46,7 @@ import { useVideoReportSource } from "@/features/reports/hooks/useVideoReportSou
 import { VideoCueAiRemediationSection } from "@/features/video/components/VideoCueAiRemediationSection";
 import type { AiRemediationEntry } from "@/lib/ai/remediation/client/aiRemediationEntry";
 import { collectVideoCueRemediationCandidates } from "@/lib/ai/remediation/report";
+import { WorkspaceVideoHandoffPanel } from "@/features/accessibility-workspace/components/WorkspaceVideoHandoffPanel";
 
 const PLATFORMS: SocialPlatform[] = ["instagram", "facebook", "linkedin", "x"];
 
@@ -359,6 +360,7 @@ export function VideoAccessibilityCheckerPage({
 
   return (
     <div className="space-y-8">
+      <WorkspaceVideoHandoffPanel />
       {!storageConfigured && (
         <StatusMessage
           variant="error"

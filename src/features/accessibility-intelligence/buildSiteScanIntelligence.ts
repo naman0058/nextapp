@@ -7,10 +7,19 @@ import { buildWcagCoverageMatrix } from "@/features/accessibility-intelligence/w
 import { aggregateSiteIssues } from "@/features/website-scanner/utils/aggregateSiteIssues";
 import type { WebsitePageScanResult } from "@/features/website-scanner/types/scanTypes";
 import { computeRemediationPriority } from "@/features/accessibility-intelligence/priority/remediationPriority";
+import { WEBSITE_MANUAL_REVIEW_ITEMS } from "@/features/website-scanner/constants/manualReviewChecklist";
+import { buildScanResultModel } from "@/features/website-scanner/taxonomy/buildScanResultModel";
+import { buildExecutivePreflight } from "@/features/website-scanner/executive/buildExecutivePreflight";
+import { buildFindingDetails } from "@/features/website-scanner/findingDetail/buildFindingDetails";
 
 export function buildSiteScanIntelligence(
   pages: WebsitePageScanResult[],
-  options?: { generatedAt?: string },
+  options?: {
+    generatedAt?: string;
+    includeBestPractices?: boolean;
+    humanReviewTasks?: number;
+    urlsSelected?: number;
+  },
 ): SiteScanIntelligence {
   const rootCauseGroups = groupRootCauses(pages);
   const ruleAggregates = aggregateSiteIssues(pages);
@@ -69,8 +78,42 @@ export function buildSiteScanIntelligence(
       p.scanCompleteness === "partial" || p.scanCompleteness === "limited",
   ).length;
 
-  return {
+  const wcagOccurrences = ruleAggregates
+    .filter((r) => !r.isBestPractice)
+    .reduce((n, r) => n + r.totalNodeCount, 0);
+
+  const scanResultModel = buildScanResultModel(pages, {
+    includeBestPractices: options?.includeBestPractices ?? true,
+    humanReviewTasks:
+      options?.humanReviewTasks ?? WEBSITE_MANUAL_REVIEW_ITEMS.length,
+    generatedAt: options?.generatedAt,
+  });
+  scanResultModel.summary.affectedOccurrences = wcagOccurrences;
+  scanResultModel.summary.failedAutomatedRules =
+    ruleAggregates.filter((r) => !r.isBestPractice).length;
+
+  const intel: SiteScanIntelligence = {
     generatedAt: options?.generatedAt ?? new Date().toISOString(),
+    scanResultModel,
+    executivePreflight: {
+      snapshot: {
+        failedAutomatedRules: 0,
+        affectedOccurrences: 0,
+        pagesScanned: pages.length,
+        needsManualConfirmation: 0,
+        humanReviewOpen: 0,
+        coverageStatusLabel: "Complete",
+        bestPracticeObservations: 0,
+        passedAutomatedRules: 0,
+        preflightStatusPhrase: "",
+      },
+      categorySummary: [],
+      coverageDiagnostic: [],
+      topRemediationPriorities: [],
+      pageHotspots: [],
+      ruleRollups: [],
+      sharedRootCauseCount: 0,
+    },
     summary: {
       pagesScanned: pages.length,
       completePages,
@@ -97,5 +140,17 @@ export function buildSiteScanIntelligence(
     wcagCoverage: buildWcagCoverageMatrix(pages),
     fixPlan: buildFixPlan(rootCauseGroups, ruleAggregates),
     priorityExplanation: PRIORITY_EXPLANATION,
+    findingDetails: [],
   };
+
+  intel.executivePreflight = buildExecutivePreflight({
+    pages,
+    scanResultModel,
+    intel,
+    urlsSelected: options?.urlsSelected ?? pages.length,
+  });
+
+  intel.findingDetails = buildFindingDetails(pages, intel);
+
+  return intel;
 }

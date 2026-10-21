@@ -11,6 +11,10 @@ import { CopySelectorButton } from "@/features/website-scanner/components/CopySe
 import { CopyDeveloperTicketButton } from "@/features/website-scanner/components/developerTicket/CopyDeveloperTicketButton";
 import { useWebsiteScanSession } from "@/features/website-scanner/context/WebsiteScanProvider";
 import type { WebsitePageScanResult } from "@/features/website-scanner/types/scanTypes";
+import { buildVisualLocatorContribution } from "@/features/accessibility-workspace/buildVisualLocatorContribution";
+import { queuePendingContribution } from "@/features/accessibility-workspace/handoffStorage";
+import { resolveFindingIdForRule } from "@/features/accessibility-workspace/resolveFindingIdForRule";
+import { toolCapabilities } from "@/features/accessibility-workspace/toolCatalog";
 
 type Props = {
   open: boolean;
@@ -46,6 +50,8 @@ export function VisualIssueLocatorDialog({
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const [zoom, setZoom] = useState(1);
+  const [visualSaveMessage, setVisualSaveMessage] = useState<string | null>(null);
+  const canContribute = toolCapabilities("visual_issue_locator").supportsExplicitReportInclusion;
 
   useEffect(() => {
     if (!open) return;
@@ -80,6 +86,36 @@ export function VisualIssueLocatorDialog({
         (p) => p.rootCauseGroupId === rootGroup.id,
       )
     : undefined;
+  const activeOcc = occurrences[activeIndex];
+  const findingId = ruleId
+    ? resolveFindingIdForRule(state.siteIntelligence, ruleId, evidence?.pageUrl)
+    : undefined;
+
+  function saveVisualEvidence(includedInReport: boolean) {
+    if (!evidence || !ruleId || !findingId || !activeOcc) return;
+    if (evidence.status !== "available") return;
+    queuePendingContribution(
+      buildVisualLocatorContribution({
+        findingId,
+        ruleId,
+        remediationGroupId: rootGroup?.id,
+        evidenceId: activeOcc.issueFingerprint,
+        occurrenceIndex: activeOcc.occurrenceIndex,
+        occurrenceTotal: activeOcc.occurrenceTotal,
+        pageUrl: activeOcc.pageUrl,
+        viewportId: activeOcc.viewportId,
+        selectorLabel: activeOcc.selectorLabel,
+        locatorMatch: evidence.locatorMatch,
+        includedInReport,
+      }),
+    );
+    setVisualSaveMessage(
+      includedInReport
+        ? "Visual evidence reference added to workspace report list."
+        : "Visual evidence reference saved without report inclusion.",
+    );
+  }
+
   const alt = evidence?.pageUrl
     ? `Screenshot of ${evidence.pageUrl} with affected element highlighted as issue ${activeIndex + 1}.`
     : "Visual issue locator screenshot";
@@ -243,6 +279,24 @@ export function VisualIssueLocatorDialog({
               Open Fix Lab
             </button>
           )}
+          {canContribute && evidence?.status === "available" && findingId ? (
+            <>
+              <button
+                type="button"
+                className="rounded-lg border border-primary bg-primary/10 px-3 py-1.5 text-sm font-semibold"
+                onClick={() => saveVisualEvidence(true)}
+              >
+                Add visual evidence to report
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-border px-3 py-1.5 text-sm"
+                onClick={() => saveVisualEvidence(false)}
+              >
+                Save evidence reference only
+              </button>
+            </>
+          ) : null}
           {ruleId && rootGroup && (
             <CopyDeveloperTicketButton
               ruleId={ruleId}
@@ -254,6 +308,12 @@ export function VisualIssueLocatorDialog({
             />
           )}
         </div>
+
+        {visualSaveMessage ? (
+          <p className="mt-2 text-xs" role="status">
+            {visualSaveMessage}
+          </p>
+        ) : null}
 
         {evidence && (
           <div className="mt-4 space-y-2 text-sm">

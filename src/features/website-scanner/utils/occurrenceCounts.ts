@@ -13,7 +13,15 @@ export function formatRetainedEvidenceNote(
   totalAffectedOccurrences: number,
 ): string | null {
   if (retainedEvidenceCount >= totalAffectedOccurrences) return null;
-  return `${retainedEvidenceCount} detailed occurrence example${retainedEvidenceCount === 1 ? "" : "s"} retained`;
+  return formatDetailedEvidenceExamples(retainedEvidenceCount);
+}
+
+export function formatDetailedEvidenceExamples(retainedEvidenceCount: number): string {
+  return `${retainedEvidenceCount} detailed evidence example${retainedEvidenceCount === 1 ? "" : "s"} retained`;
+}
+
+export function formatRepresentativeSelectorsShown(displayedSelectorCount: number): string {
+  return `Showing ${displayedSelectorCount} representative selector${displayedSelectorCount === 1 ? "" : "s"}`;
 }
 
 export function viewOccurrencesButtonLabel(

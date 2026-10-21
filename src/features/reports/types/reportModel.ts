@@ -33,6 +33,8 @@ export type ReportFinding = {
   recommendation?: string;
   userConfirmed?: boolean;
   technicalId?: string;
+  remediationDefinitionId?: string;
+  remediationDefinitionVersion?: number;
 };
 
 export type ReportSectionCounts = {
@@ -114,4 +116,14 @@ export type AccessibilityPreflightReport = {
   aiRemediationAppendix?: ReportAiRemediationAppendix;
   /** When appendix included: count for executive summary (not issues fixed) */
   aiRemediationIncludedSummary?: string;
+  /** Website scan taxonomy counters (canonical; same as session scanResultModel.summary). */
+  websiteScanTaxonomy?: import("@/features/website-scanner/taxonomy/types").ScanResultSummaryCounters;
+  /** Phase 3 executive preflight (canonical; same as session executivePreflight). */
+  websiteExecutivePreflight?: import("@/features/website-scanner/executive/types").SiteExecutivePreflight;
+  /** Phase 6 optional cross-tool contributions (explicit user inclusion only). */
+  reportWorkspace?: import("@/features/accessibility-workspace/types").ReportWorkspaceBlock;
+  /** Phase 7 structured human review workspace export. */
+  humanReviewWorkspace?: import("@/features/human-review-workspace/types").HumanReviewReportBlock;
+  /** Phase 8 canonical enterprise presentation model (website scans). */
+  enterpriseView?: import("@/features/reports/enterprise/types").EnterprisePreflightReport;
 };

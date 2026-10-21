@@ -20,6 +20,10 @@ export function formatDeveloperTicketMarkdown(ticket: DeveloperTicket): string {
   const lines: string[] = [];
   lines.push(`# ${escapeMarkdownInline(ticket.title)}`);
   lines.push("");
+  lines.push(
+    "> Suggested implementation — review before implementation. This ticket does not indicate verified compliance.",
+  );
+  lines.push("");
   lines.push("## Summary");
   lines.push("");
   lines.push(escapeMarkdownInline(ticket.summary));

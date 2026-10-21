@@ -82,7 +82,7 @@ describe("resolveDisplayFixStatus", () => {
     expect(status).toBe("User Marked Fixed");
   });
 
-  it("returns Verified by Rescan when rule gone after rescan", () => {
+  it("returns no-longer-detected label when rule gone after rescan", () => {
     const prev = [minimalPage("https://a.test/", "image-alt", 2)];
     const curr = [minimalPage("https://a.test/", "image-alt", 0)];
     curr[0].violations = [];
@@ -108,6 +108,6 @@ describe("resolveDisplayFixStatus", () => {
       currentPages: curr,
       rootCauseGroup: group,
     });
-    expect(status).toBe("Verified by Rescan");
+    expect(status).toBe("No longer detected in this automated rescan");
   });
 });

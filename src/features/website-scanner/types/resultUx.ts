@@ -3,10 +3,16 @@ export type ResultViewTab =
   | "issues"
   | "fix-plan"
   | "human-review"
+  | "coverage"
   | "inventory"
   | "report";
 
-export type IssuesGroupBy = "root-cause" | "rule" | "page";
+export type IssuesGroupBy =
+  | "root-cause"
+  | "rule"
+  | "page"
+  | "category"
+  | "wcag";
 
 export type ExplanationLevel = "simple" | "developer" | "standard";
 
@@ -20,7 +26,7 @@ export type DisplayFixTaskStatus =
   | "Not Started"
   | "In Review"
   | "User Marked Fixed"
-  | "Verified by Rescan"
+  | "No longer detected in this automated rescan"
   | "Partially Improved"
   | "Still Present"
   | "Human Review Required";

@@ -96,7 +96,7 @@ function adaptIncomplete(
     priority: "medium",
     confidence: "human_required",
     description: automatedViolationForSameRule
-      ? `Axe could not fully automate this check on this page; manual verification is required. ${inc.description}`
+      ? `Axe could not determine this condition automatically for some elements on this page (separate from automated failures already reported for this rule). Manual confirmation is required for those cases. ${inc.description}`
       : inc.description,
     userImpact: getUserImpactForRule(inc.id, inc.help),
     wcagCriteria: inc.wcagCriteria,

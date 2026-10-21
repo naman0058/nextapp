@@ -11,17 +11,20 @@ import { IssuesTab } from "@/features/website-scanner/components/results/IssuesT
 import { FixPlanTab } from "@/features/website-scanner/components/results/FixPlanTab";
 import { HumanReviewTab } from "@/features/website-scanner/components/results/HumanReviewTab";
 import { ReportTab } from "@/features/website-scanner/components/results/ReportTab";
+import { CoverageTab } from "@/features/website-scanner/components/results/CoverageTab";
 import { RescanComparisonBanner } from "@/features/website-scanner/components/results/RescanComparisonBanner";
 import { ScanScopeBanner } from "@/features/website-scanner/components/results/ScanScopeBanner";
 import { PageInventoryPanel } from "@/features/website-scanner/components/results/PageInventoryPanel";
 import { WebsiteExportMenu } from "@/features/website-scanner/components/results/WebsiteExportMenu";
 import { VisualLocatorProvider } from "@/features/website-scanner/components/visualLocator/VisualLocatorProvider";
+import { WorkspaceReturnCoordinator } from "@/features/accessibility-workspace/components/WorkspaceReturnCoordinator";
 
 const TABS: { id: ResultViewTab; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "issues", label: "Issues" },
   { id: "fix-plan", label: "Fix plan" },
   { id: "human-review", label: "Human review" },
+  { id: "coverage", label: "Coverage" },
   { id: "inventory", label: "Page inventory" },
   { id: "report", label: "Report" },
 ];
@@ -47,11 +50,6 @@ export function WebsiteScanResultsShell({
   }, [state.previousSnapshot, completedPages]);
 
   const intel = state.siteIntelligence;
-  const totalIncomplete = completedPages.reduce(
-    (n, p) => n + p.incomplete.length,
-    0,
-  );
-
   useEffect(() => {
     if (!state.completedAt || state.status === "scanning") return;
     if (lastFocusCompletion.current === state.completedAt) return;
@@ -71,6 +69,7 @@ export function WebsiteScanResultsShell({
       scanSessionKey={state.completedAt}
       completedPages={completedPages}
     >
+    <WorkspaceReturnCoordinator />
     <section
       className="space-y-6 rounded-2xl border border-border bg-card p-6"
       aria-labelledby="scan-results-heading"
@@ -143,11 +142,7 @@ export function WebsiteScanResultsShell({
         className="min-h-[12rem]"
       >
         {active === "overview" && (
-          <OverviewTab
-            intel={intel}
-            completedPages={completedPages}
-            totalIncomplete={totalIncomplete}
-          />
+          <OverviewTab intel={intel} completedPages={completedPages} />
         )}
         {active === "issues" && (
           <IssuesTab intel={intel} completedPages={completedPages} />
@@ -162,6 +157,7 @@ export function WebsiteScanResultsShell({
         {active === "human-review" && (
           <HumanReviewTab completedPages={completedPages} />
         )}
+        {active === "coverage" && <CoverageTab intel={intel} />}
         {active === "inventory" && <PageInventoryPanel />}
         {active === "report" && <ReportTab completedPages={completedPages} />}
       </div>

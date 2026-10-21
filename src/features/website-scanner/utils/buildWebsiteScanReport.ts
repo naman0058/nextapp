@@ -1,5 +1,4 @@
 import { REPORT_DISCLAIMER } from "@/features/reports/constants/disclaimer";
-import { REPORT_METHODOLOGY } from "@/features/reports/constants/methodology";
 import { REPORT_VERSION } from "@/features/reports/constants/reportVersion";
 import { BASE_REPORT_LIMITATIONS } from "@/features/reports/constants/limitations";
 import type {
@@ -7,8 +6,13 @@ import type {
   ReportFinding,
   ReportSection,
 } from "@/features/reports/types/reportModel";
-import { getRuleKnowledge } from "@/features/accessibility-intelligence/knowledge/ruleKnowledge";
-import { WEBSITE_MANUAL_REVIEW_ITEMS } from "@/features/website-scanner/constants/manualReviewChecklist";
+import type { OverallReportStatus } from "@/features/reports/types/reportStatus";
+import {
+  getDeterministicRemediation,
+  hasFullDeterministicRemediation,
+} from "@/features/website-scanner/remediation/registry";
+import { buildEnterprisePreflightReport } from "@/features/reports/enterprise/buildEnterprisePreflightReport";
+import { buildWebsiteReportMethodology } from "@/features/reports/enterprise/buildWebsiteReportMethodology";
 import type { WebsitePageScanResult } from "@/features/website-scanner/types/scanTypes";
 import type { WebsiteScanSessionState } from "@/features/website-scanner/types/websiteSession";
 import {
@@ -19,8 +23,54 @@ import {
   formatPageExecutionLabel,
 } from "@/features/website-scanner/utils/pageScanDiagnostics";
 import { attachAiRemediationAppendix } from "@/features/reports/utils/attachAiRemediationAppendix";
+import { buildReportWorkspaceBlock } from "@/features/accessibility-workspace/buildContrastContribution";
+import { buildHumanReviewReportBlock } from "@/features/human-review-workspace/buildHumanReviewReportBlock";
+import { ensureHumanReviewRecords } from "@/features/human-review-workspace/ensureHumanReviewRecords";
 import { collectWebsiteRemediationCandidates } from "@/lib/ai/remediation/report";
 import { websiteAiRemediationSelectionFromSession } from "@/features/website-scanner/utils/websiteReportAiSelection";
+import { scanResultCounters } from "@/features/website-scanner/taxonomy/buildScanResultModel";
+
+function appendTaxonomyReportFindings(
+  findings: ReportFinding[],
+  session: WebsiteScanSessionState,
+): void {
+  const model = session.siteIntelligence?.scanResultModel;
+  if (!model) return;
+
+  const seenPass = new Set<string>();
+  for (const e of model.passedChecks) {
+    if (seenPass.has(e.ruleId)) continue;
+    seenPass.add(e.ruleId);
+    findings.push({
+      id: `axe-pass-${e.ruleId}`,
+      section: "Automated checks passed",
+      title: e.title,
+      status: "ready",
+      sourceType: "automated_rule",
+      finding: `Automated check passed (${e.productCategory}).${
+        e.wcagCriteria.length
+          ? ` Mapped WCAG: ${e.wcagCriteria.join(", ")} (${e.wcagLevel}).`
+          : ""
+      } Passing this automated rule does not establish compliance with the full success criterion.`,
+      technicalId: e.ruleId,
+    });
+  }
+
+  const seenNa = new Set<string>();
+  for (const e of model.notApplicableChecks) {
+    if (seenNa.has(e.ruleId)) continue;
+    seenNa.add(e.ruleId);
+    findings.push({
+      id: `axe-na-${e.ruleId}`,
+      section: "Not applicable",
+      title: e.title,
+      status: "not_applicable",
+      sourceType: "automated_rule",
+      finding: "Not applicable to scanned page state.",
+      technicalId: e.ruleId,
+    });
+  }
+}
 
 function buildFindings(
   pages: WebsitePageScanResult[],
@@ -42,6 +92,7 @@ function buildFindings(
         v.totalNodeCount > examples
           ? ` (${v.totalNodeCount} affected elements; ${examples} example(s) shown)`
           : ` (${v.totalNodeCount} element(s))`;
+      const remediationDef = getDeterministicRemediation(v.id);
       findings.push({
         id: `${page.finalUrl}-${v.id}`,
         section: v.isBestPractice ? "Best practices" : "Automated WCAG",
@@ -52,6 +103,8 @@ function buildFindings(
         finding: `${v.description}${truncated} on ${page.finalUrl}`,
         recommendation: normalized?.recommendation ?? v.helpUrl,
         technicalId: v.id,
+        remediationDefinitionId: remediationDef?.ruleId,
+        remediationDefinitionVersion: remediationDef?.definitionVersion,
       });
     }
     const automatedRuleIds = new Set(
@@ -74,22 +127,6 @@ function buildFindings(
       });
     }
   }
-  for (const item of WEBSITE_MANUAL_REVIEW_ITEMS) {
-    const entry = session.manualReview.find((m) => m.itemId === item.id);
-    findings.push({
-      id: `manual-${item.id}`,
-      section: "Checklist",
-      title: item.title,
-      status:
-        entry?.status === "passes"
-          ? "ready"
-          : entry?.status === "not_applicable"
-            ? "not_applicable"
-            : "review",
-      sourceType: "manual_review",
-      finding: item.detail,
-    });
-  }
   for (const [ruleId, guidance] of Object.entries(session.aiGuidance)) {
     if (guidance.stale) continue;
     findings.push({
@@ -108,17 +145,16 @@ function buildFindings(
       for (const v of page.violations) {
         if (seen.has(v.id)) continue;
         seen.add(v.id);
-        const knowledge = getRuleKnowledge(v.id);
-        const tpl = knowledge?.deterministicFixTemplate;
-        if (!tpl) continue;
+        const remediation = getDeterministicRemediation(v.id);
+        if (!remediation || !hasFullDeterministicRemediation(v.id)) continue;
         findings.push({
           id: `dev-fix-${v.id}`,
           section: "Developer fix appendix",
-          title: knowledge.plainTitle ?? v.help,
+          title: remediation.title,
           status: "review",
           sourceType: "automated_rule",
-          finding: tpl.whatIsWrong,
-          recommendation: `${tpl.genericPattern} — Verify: ${tpl.howToVerify}`,
+          finding: remediation.shortProblem,
+          recommendation: `${remediation.remediationSteps.slice(0, 3).join(" ")} — Verify: ${remediation.verificationSteps.map((x) => x.text).join("; ")}`,
           technicalId: v.id,
         });
       }
@@ -187,6 +223,30 @@ export function buildWebsiteScanReport(
 
   const attention = findings.filter((f) => f.status === "attention").length;
   const review = findings.filter((f) => f.status === "review").length;
+  const taxonomy = scanResultCounters(session.siteIntelligence?.scanResultModel);
+  appendTaxonomyReportFindings(findings, session);
+
+  const contributions = session.accessibilityWorkspace?.contributions ?? [];
+  const humanReviewRecords = ensureHumanReviewRecords({
+    records: session.accessibilityWorkspace?.humanReviewRecords ?? [],
+    manualReview: session.manualReview,
+    completedPages: pages,
+    intel: session.siteIntelligence,
+    contributions,
+    urlsSelected: session.scanScope.urlsSelected,
+  });
+  const humanReviewWorkspace = buildHumanReviewReportBlock(humanReviewRecords);
+  const reportWorkspace = buildReportWorkspaceBlock(
+    contributions,
+    humanReviewWorkspace.progress.reviewed,
+    humanReviewWorkspace.progress.relevant,
+  );
+
+  const executivePreflight = session.siteIntelligence?.executivePreflight;
+  const statusPhrase =
+    executivePreflight?.snapshot.preflightStatusPhrase ??
+    (attention > 0 ? "Important automated findings identified" : "Review Recommended");
+  const websiteMethodology = buildWebsiteReportMethodology(session);
 
   const base: AccessibilityPreflightReport = {
     reportId: `rpt-web-${session.sessionId.slice(0, 8)}`,
@@ -208,15 +268,14 @@ export function buildWebsiteScanReport(
         : undefined,
     },
     summary: {
-      overallStatus:
-        attention > 0 ? "Important Issues Identified" : "Review Recommended",
+      overallStatus: statusPhrase as OverallReportStatus,
       platform: null,
       contentType: "website_scan",
       checksCompleted: findings.length,
       itemsReady: findings.filter((f) => f.status === "ready").length,
       itemsRequiringReview: review,
       importantIssues: attention,
-      humanReviewRemaining: review,
+      humanReviewRemaining: humanReviewWorkspace.progress.remainingOpen,
       sectionSummaries: [
         {
           id: automatedSection.id,
@@ -227,26 +286,34 @@ export function buildWebsiteScanReport(
     },
     textAccessibility: automatedSection,
     humanReview: {
-      items: WEBSITE_MANUAL_REVIEW_ITEMS.map((item) => ({
-        id: item.id,
-        title: item.title,
-        detail: item.detail,
+      items: humanReviewWorkspace.records.map((r) => ({
+        id: r.reviewId,
+        title: r.title,
+        detail:
+          r.status === "passes"
+            ? "Reviewer marked this procedure as passes (human review result)."
+            : r.status === "needs_review"
+              ? "Needs further review."
+              : r.status === "not_applicable"
+                ? "Not applicable to the reviewed scope."
+                : "Not reviewed.",
         priority: "medium",
-        status: "pending",
+        status:
+          r.status === "passes" || r.status === "not_applicable"
+            ? "completed"
+            : "pending",
         phase: "website",
       })),
-      remainingCount: review,
+      remainingCount: humanReviewWorkspace.progress.remainingOpen,
     },
+    humanReviewWorkspace,
     methodology: {
-      ...REPORT_METHODOLOGY,
-      categories: [
-        ...REPORT_METHODOLOGY.categories,
-        {
-          type: "automated_rule",
-          label: "Website automated rules",
-          examples: ["axe-core via Playwright Chromium"],
-        },
-      ],
+      version: websiteMethodology.version,
+      categories: websiteMethodology.sections.map((s) => ({
+        type: "automated_rule" as const,
+        label: s.title,
+        examples: s.bullets,
+      })),
     },
     limitations: [
       ...BASE_REPORT_LIMITATIONS,
@@ -269,8 +336,14 @@ export function buildWebsiteScanReport(
           (g) =>
             `Likely shared root cause: ${g.label} (${g.totalOccurrences} occurrences, ${g.affectedPages.length} pages).`,
         ) ?? []),
+      `Automated analysis (axe rules): ${taxonomy.failedAutomatedRules} failed, ${taxonomy.affectedOccurrences} affected occurrence(s), ${taxonomy.passedAutomatedRules} passed rule(s), ${taxonomy.needsManualConfirmation} need manual confirmation, ${taxonomy.notApplicableRules} not applicable, ${taxonomy.bestPracticeObservations} best-practice observation(s).`,
+      "Passing an automated rule does not establish WCAG compliance; human review remains required.",
     ],
     disclaimer: `${REPORT_DISCLAIMER} Automated accessibility scans cannot evaluate every accessibility requirement. This report is not legal advice or accessibility certification and requires human review.`,
+    websiteScanTaxonomy: taxonomy,
+    websiteExecutivePreflight: session.siteIntelligence?.executivePreflight,
+    reportWorkspace:
+      reportWorkspace.contributions.length > 0 ? reportWorkspace : undefined,
   };
 
   const selection = websiteAiRemediationSelectionFromSession(session, {
@@ -289,5 +362,7 @@ export function buildWebsiteScanReport(
     session,
     session.siteIntelligence,
   );
-  return attachAiRemediationAppendix(base, candidates, selection);
+  const withAi = attachAiRemediationAppendix(base, candidates, selection);
+  const enterpriseView = buildEnterprisePreflightReport(pages, session, withAi);
+  return enterpriseView ? { ...withAi, enterpriseView } : withAi;
 }

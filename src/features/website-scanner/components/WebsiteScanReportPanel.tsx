@@ -5,6 +5,8 @@ import { ReportHtmlPreview } from "@/features/reports/components/ReportHtmlPrevi
 import "@/features/reports/reportPrint.css";
 import { downloadReportJson } from "@/features/reports/utils/exportReportJson";
 import { validatePreflightReport } from "@/features/reports/utils/validatePreflightReport";
+import { validateEnterpriseReportConsistency } from "@/features/reports/enterprise/validateEnterpriseReportConsistency";
+import { buildWebsiteReportFilename } from "@/features/reports/enterprise/buildWebsiteReportFilename";
 import type { WebsitePageScanResult } from "@/features/website-scanner/types/scanTypes";
 import type { WebsiteScanSessionState } from "@/features/website-scanner/types/websiteSession";
 import { buildWebsiteScanReport } from "@/features/website-scanner/utils/buildWebsiteScanReport";
@@ -24,9 +26,9 @@ export function WebsiteScanReportPanel({ pages, session }: Props) {
   function generate() {
     const built = buildWebsiteScanReport(pages, session);
     const v = validatePreflightReport(built);
-    if (!v.ok) {
-      console.warn(v.errors);
-    }
+    const ev = validateEnterpriseReportConsistency(built, built.enterpriseView);
+    if (!v.ok) console.warn(v.errors);
+    if (!ev.ok) console.warn(ev.errors);
     setReport(built);
   }
 
@@ -39,7 +41,7 @@ export function WebsiteScanReportPanel({ pages, session }: Props) {
       );
       await exportReportPdf(
         report,
-        `website-scan-report-${session.sessionId.slice(0, 8)}.pdf`,
+        buildWebsiteReportFilename(session.rootUrl, report.generatedAt, "pdf"),
       );
       setPdfStatus("PDF downloaded.");
     } catch {
@@ -77,7 +79,7 @@ export function WebsiteScanReportPanel({ pages, session }: Props) {
               onClick={() =>
                 downloadReportJson(
                   report,
-                  `website-scan-report-${session.sessionId.slice(0, 8)}.json`,
+                  buildWebsiteReportFilename(session.rootUrl, report.generatedAt, "json"),
                 )
               }
             >
@@ -105,6 +107,28 @@ export function WebsiteScanReportPanel({ pages, session }: Props) {
           {pdfStatus}
         </p>
       ) : null}
+      {report?.websiteExecutivePreflight && (
+        <dl className="grid grid-cols-2 gap-2 rounded-lg border border-border p-3 text-sm sm:grid-cols-3">
+          <div>
+            <dt className="text-muted">Failed rules</dt>
+            <dd className="font-semibold tabular-nums">
+              {report.websiteExecutivePreflight.snapshot.failedAutomatedRules}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted">Affected occurrences</dt>
+            <dd className="font-semibold tabular-nums">
+              {report.websiteExecutivePreflight.snapshot.affectedOccurrences}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted">Needs confirmation</dt>
+            <dd className="font-semibold tabular-nums">
+              {report.websiteExecutivePreflight.snapshot.needsManualConfirmation}
+            </dd>
+          </div>
+        </dl>
+      )}
       {report && (
         <div className="report-print-root">
           <ReportHtmlPreview report={report} />

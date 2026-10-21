@@ -61,7 +61,13 @@ export function WebsiteExportMenu({ completedPages, onRescan }: Props) {
             onClick={() =>
               void runExport("Preparing Excel workbook", async () => {
                 const blob = await exportWebsiteWorkbook(state, completedPages);
-                downloadBlob(blob, "accessibility-preflight.xlsx");
+                const { buildWebsiteReportFilename } = await import(
+                  "@/features/reports/enterprise/buildWebsiteReportFilename"
+                );
+                downloadBlob(
+                  blob,
+                  buildWebsiteReportFilename(state.rootUrl, new Date().toISOString(), "xlsx"),
+                );
               })
             }
           >

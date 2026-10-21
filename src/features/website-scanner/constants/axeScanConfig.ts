@@ -19,3 +19,22 @@ export function buildAxeRunTags(includeBestPractices: boolean): string[] {
   }
   return tags;
 }
+
+export type AxeRunProfileSummary = {
+  tags: string[];
+  includeBestPractices: boolean;
+  explicitRuleIds: string[];
+  wcagLevels: string[];
+};
+
+/** Documented axe run profile for coverage audits and docs. */
+export function describeAxeRunProfile(
+  includeBestPractices: boolean,
+): AxeRunProfileSummary {
+  return {
+    tags: buildAxeRunTags(includeBestPractices),
+    includeBestPractices,
+    explicitRuleIds: [...AXE_EXPLICIT_RULE_IDS],
+    wcagLevels: ["WCAG 2.0/2.1/2.2 Level A and AA (via axe tag sets)"],
+  };
+}

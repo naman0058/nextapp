@@ -8,6 +8,7 @@ import { appInputClassName, appTextareaClassName } from "@/components/app/appSty
 import { ScreenReaderExperiencePanel } from "@/features/accessibility/components/screenReader/ScreenReaderExperiencePanel";
 import { ScreenReaderPreviewFaq } from "@/features/accessibility/components/screenReader/ScreenReaderPreviewFaq";
 import { Button } from "@/components/ui/Button";
+import { WorkspaceScreenReaderHandoffPanel } from "@/features/accessibility-workspace/components/WorkspaceScreenReaderHandoffPanel";
 
 const STEPS = [
   { id: "sr-inputs", label: "Enter content", shortLabel: "Input" },
@@ -32,6 +33,7 @@ export function ScreenReaderPreviewPage() {
 
   return (
     <ToolWorkspace steps={[...STEPS]} activeStepId="sr-inputs">
+      <WorkspaceScreenReaderHandoffPanel />
       <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
         <AppPanel
           id="sr-inputs"

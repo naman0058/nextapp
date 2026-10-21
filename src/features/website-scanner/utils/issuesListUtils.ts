@@ -1,5 +1,6 @@
 import type { RootCauseGroup } from "@/features/accessibility-intelligence/types/siteIntelligence";
 import type { NormalizedAccessibilityFinding } from "@/features/accessibility-intelligence/types/normalizedFinding";
+import type { ProductFindingCategory } from "@/features/website-scanner/taxonomy/types";
 import type { WebsitePageScanResult } from "@/features/website-scanner/types/scanTypes";
 
 export type IssuesSortKey =
@@ -11,14 +12,23 @@ export type IssuesSortKey =
 
 export type IssuesViewportFilter = "all" | "both" | "desktop" | "mobile";
 
+export type IssuesStatusFilter =
+  | "actionable"
+  | "failed"
+  | "confirmation"
+  | "best_practice";
+
 export type IssuesFilterState = {
   priority: string;
   impact: string;
   wcagLevel: string;
+  wcagCriterion: string;
+  category: ProductFindingCategory | "all";
   pageUrl: string;
   sourceType: string;
   bestPracticeOnly: boolean | null;
   humanReviewOnly: boolean;
+  issueStatus: IssuesStatusFilter;
   search: string;
   viewport: IssuesViewportFilter;
 };
@@ -27,13 +37,35 @@ export const DEFAULT_ISSUES_FILTER: IssuesFilterState = {
   priority: "all",
   impact: "all",
   wcagLevel: "all",
+  wcagCriterion: "all",
+  category: "all",
   pageUrl: "all",
   sourceType: "all",
   bestPracticeOnly: null,
   humanReviewOnly: false,
+  issueStatus: "actionable",
   search: "",
   viewport: "all",
 };
+
+export function filterFindingsByIssueStatus(
+  findings: NormalizedAccessibilityFinding[],
+  issueStatus: IssuesStatusFilter,
+): NormalizedAccessibilityFinding[] {
+  switch (issueStatus) {
+    case "failed":
+      return findings.filter((f) => f.status === "issue" && !f.bestPractice);
+    case "confirmation":
+      return findings.filter(
+        (f) => f.status === "review" && f.humanReviewRequired && f.sourceType === "axe",
+      );
+    case "best_practice":
+      return findings.filter((f) => f.status === "issue" && f.bestPractice);
+    case "actionable":
+    default:
+      return findings.filter((f) => f.status === "issue" && !f.bestPractice);
+  }
+}
 
 export function filterFindingsByViewport(
   findings: NormalizedAccessibilityFinding[],
@@ -73,7 +105,8 @@ export function filterNormalizedFindings(
 ): NormalizedAccessibilityFinding[] {
   const q = filter.search.trim().toLowerCase();
   const byViewport = filterFindingsByViewport(findings, filter.viewport);
-  return byViewport.filter((f) => {
+  const byStatus = filterFindingsByIssueStatus(byViewport, filter.issueStatus);
+  return byStatus.filter((f) => {
     if (filter.humanReviewOnly && !f.humanReviewRequired) return false;
     if (filter.bestPracticeOnly === true && !f.bestPractice) return false;
     if (filter.bestPracticeOnly === false && f.bestPractice) return false;
@@ -87,7 +120,8 @@ export function filterNormalizedFindings(
       (f.ruleId?.toLowerCase().includes(q) ?? false) ||
       f.title.toLowerCase().includes(q) ||
       (f.pageUrl?.toLowerCase().includes(q) ?? false) ||
-      (f.wcagCriteria?.join(" ").toLowerCase().includes(q) ?? false)
+      (f.wcagCriteria?.join(" ").toLowerCase().includes(q) ?? false) ||
+      (f.evidence.some((e) => e.selector?.toLowerCase().includes(q)) ?? false)
     );
   });
 }

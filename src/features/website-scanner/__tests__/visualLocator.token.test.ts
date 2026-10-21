@@ -32,6 +32,12 @@ describe("visual locator token", () => {
     delete process.env.VISUAL_LOCATOR_SIGNING_SECRET;
   });
 
+  it("does not embed signing secret in token string", () => {
+    process.env.VISUAL_LOCATOR_SIGNING_SECRET = SECRET;
+    const token = signVisualLocatorToken(samplePayload());
+    expect(token).not.toContain(SECRET);
+  });
+
   it("signs and verifies a valid token", () => {
     process.env.VISUAL_LOCATOR_SIGNING_SECRET = SECRET;
     const token = signVisualLocatorToken(samplePayload());

@@ -7,6 +7,13 @@ import { formatDeveloperTicketPlainText } from "@/features/website-scanner/devel
 import { downloadDeveloperTicketFile } from "@/features/website-scanner/components/developerTicket/downloadDeveloperTicket";
 import { useDeveloperTicketClipboard } from "@/features/website-scanner/components/developerTicket/useDeveloperTicketClipboard";
 
+type WorkspaceTicketContext = {
+  findingId: string;
+  remediationGroupId?: string;
+  ruleId: string;
+  pageUrl?: string;
+};
+
 type Props = {
   open: boolean;
   ticket: DeveloperTicket | null;
@@ -15,6 +22,8 @@ type Props = {
   onIncludeAiChange: (v: boolean) => void;
   hasCachedAi: boolean;
   onRebuildWithAi?: (include: boolean) => void;
+  workspaceContext?: WorkspaceTicketContext;
+  onWorkspaceSaved?: (ticket: DeveloperTicket, includedInReport: boolean) => void;
 };
 
 export function DeveloperTicketDialog({
@@ -25,11 +34,14 @@ export function DeveloperTicketDialog({
   onIncludeAiChange,
   hasCachedAi,
   onRebuildWithAi,
+  workspaceContext,
+  onWorkspaceSaved,
 }: Props) {
   const titleId = useId();
   const previewId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
   const [format, setFormat] = useState<DeveloperTicketFormat>("markdown");
+  const [workspaceMessage, setWorkspaceMessage] = useState<string | null>(null);
   const { message, copyText } = useDeveloperTicketClipboard();
 
   const body = useMemo(() => {
@@ -129,6 +141,43 @@ export function DeveloperTicketDialog({
             {message}
           </p>
         )}
+
+        {workspaceContext && ticket ? (
+          <div className="border-t border-border px-4 py-3 text-sm">
+            <p className="text-xs text-muted">
+              Saving records structured handoff metadata only — not implementation confirmation.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="rounded-lg border border-primary bg-primary/10 px-3 py-1.5 text-xs font-semibold"
+                onClick={() => {
+                  onWorkspaceSaved?.(ticket, true);
+                  setWorkspaceMessage(
+                    "Developer handoff queued for your website scan report.",
+                  );
+                }}
+              >
+                Include developer handoff in report
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-border px-3 py-1.5 text-xs"
+                onClick={() => {
+                  onWorkspaceSaved?.(ticket, false);
+                  setWorkspaceMessage("Handoff saved without report inclusion.");
+                }}
+              >
+                Save handoff without report inclusion
+              </button>
+            </div>
+            {workspaceMessage ? (
+              <p className="mt-2 text-xs" role="status">
+                {workspaceMessage}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         <footer className="flex shrink-0 flex-wrap gap-2 border-t border-border p-4">
           <button

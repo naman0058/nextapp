@@ -1,18 +1,12 @@
+import { getDeterministicRemediation } from "@/features/website-scanner/remediation/registry";
 import { getVerificationStepsForRule } from "@/features/accessibility-intelligence/knowledge/ruleKnowledge";
 
 type Props = { ruleId: string };
 
-const TOOL_LINKS: { match: RegExp; href: string; label: string }[] = [
-  {
-    match: /contrast/i,
-    href: "/image-contrast-checker",
-    label: "Image contrast checker",
-  },
-];
-
 export function VerificationChecklist({ ruleId }: Props) {
+  const def = getDeterministicRemediation(ruleId);
   const steps = getVerificationStepsForRule(ruleId);
-  const tool = TOOL_LINKS.find((t) => t.match.test(ruleId));
+  const tool = def?.specializedTool;
   return (
     <div className="mt-3 rounded border border-border bg-background p-3 text-sm">
       <p className="font-medium">How to verify</p>
